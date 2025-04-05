@@ -1,5 +1,15 @@
 // Netlify serverless function for viewing database contents
 import * as db from "../../database.js";
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Initialize logger
+const log = (...args) => {
+  console.log(`[${new Date().toISOString()}] VIEW:`, ...args);
+};
 
 export const handler = async (event, _context) => {
   // Set CORS headers
@@ -28,16 +38,17 @@ export const handler = async (event, _context) => {
   }
 
   try {
-    // Get all active subscriptions
+    log('Fetching all active subscriptions');
     const subscriptions = await db.getSubscriptions();
     
+    log(`Successfully retrieved ${subscriptions.length} subscriptions`);
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify(subscriptions)
     };
   } catch (error) {
-    console.error('Error fetching subscriptions:', error);
+    log('Error fetching subscriptions:', error);
     
     return {
       statusCode: 500,

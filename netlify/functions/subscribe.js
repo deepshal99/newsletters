@@ -1,7 +1,11 @@
 // Netlify serverless function for handling subscriptions
 import { Resend } from 'resend';
 import * as db from "../../database.js";
-import process from "node:process";
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Initialize Resend with API key from environment variable
 const resend = new Resend(process.env.RESEND_API_KEY);

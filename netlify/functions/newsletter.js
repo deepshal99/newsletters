@@ -3,7 +3,11 @@ import { Rettiwt } from 'rettiwt-api';
 import { Resend } from 'resend';
 import OpenAI from 'openai';
 import * as db from "../../database.js";
-import process from "node:process";
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Initialize OpenAI with API key
 const openai = new OpenAI({
