@@ -3,9 +3,8 @@ import { Rettiwt } from 'rettiwt-api';
 import { Resend } from 'resend';
 import OpenAI from 'openai';
 import * as db from "../../database.js";
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-import dotenv from 'dotenv';
+const path = require('path');
+require('dotenv').config();
 
 // Try to load environment variables from .env file for local development
 try {
@@ -15,8 +14,7 @@ try {
 }
 
 // Use different variable names to avoid conflicts with imported modules
-const functionFilePath = fileURLToPath(import.meta.url);
-const functionDirPath = dirname(functionFilePath);
+const functionDirPath = __dirname;
 
 // Initialize OpenAI with API key
 const openai = new OpenAI({
