@@ -1,5 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
-import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
+import dotenv from 'dotenv';
+
+// Try to load environment variables from .env file for local development
+try {
+  dotenv.config();
+} catch (error) {
+  console.log('No .env file found, using environment variables');
+}
+
+// Get Supabase credentials from environment variables
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
 // Initialize Supabase client
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
@@ -20,7 +31,7 @@ async function connectToDatabase() {
   
   try {
     // Check if URL and KEY are available
-    if (!SUPABASE_URL || !SUPABASE_KEY) {
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
       throw new Error('Supabase connection credentials are not configured');
     }
 

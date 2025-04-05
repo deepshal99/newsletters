@@ -5,6 +5,14 @@ import OpenAI from 'openai';
 import * as db from "../../database.js";
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import dotenv from 'dotenv';
+
+// Try to load environment variables from .env file for local development
+try {
+  dotenv.config();
+} catch (error) {
+  console.log('No .env file found, using environment variables');
+}
 
 // Use different variable names to avoid conflicts with imported modules
 const functionFilePath = fileURLToPath(import.meta.url);
