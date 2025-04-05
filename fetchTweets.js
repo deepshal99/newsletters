@@ -215,7 +215,7 @@ async function subscribeEmailToHandles(email, handle) {
         }
 
         // Ensure database connection is established
-        await db.connectToDatabase();
+        await db.getDb();
         // Convert single handle to array if necessary
         const handles = Array.isArray(handle) ? handle : [handle];
 
