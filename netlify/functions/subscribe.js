@@ -6,7 +6,7 @@ import process from "node:process";
 // Initialize Resend with API key from environment variable
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-exports.handler = async (event, _context) => {
+export const handler = async (event, _context) => {
   // Set CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',

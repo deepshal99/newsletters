@@ -1,7 +1,7 @@
 // Netlify serverless function for viewing database contents
 import * as db from "../../database.js";
 
-exports.handler = async (event, _context) => {
+export const handler = async (event, _context) => {
   // Set CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
