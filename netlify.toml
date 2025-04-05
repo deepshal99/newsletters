@@ -4,7 +4,7 @@
   functions = "netlify/functions"
 
 [functions.scheduled-newsletter]
-schedule = "55 21 * * *"  # 3:25 AM IST (21:55 UTC)
+schedule = "06 22 * * *"  # 3:36 AM IST (22:06 UTC)
 
 
 

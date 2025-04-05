@@ -202,8 +202,20 @@ export async function sendDailyNewsletter() {
                 html: emailContent
             };
 
-            await resend.emails.send(emailData);
-            console.log(`Newsletter sent to ${email} at ${getCurrentIST()}`);
+            try {
+                const { data, error } = await resend.emails.send(emailData);
+                
+                if (error) {
+                    console.error('Resend API Error:', error);
+                    throw new Error(`Failed to send email: ${error.message}`);
+                }
+                
+                console.log(`Newsletter sent to ${email} at ${getCurrentIST()}`);
+                console.log('Email ID:', data.id);
+            } catch (error) {
+                console.error('Email sending failed:', error);
+                throw new Error(`Email delivery failed: ${error.message}`);
+            }
         }
         
         return { message: 'Newsletters sent successfully' };
