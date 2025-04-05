@@ -9,9 +9,15 @@ function scheduleAt(timeStr) {
   }
   
   // Convert IST to UTC (IST is UTC+5:30)
+  if (!process.env.SCHEDULE_TIME) {
+    throw new Error('SCHEDULE_TIME environment variable not set');
+  }
   let totalMinutes = hours * 60 + minutes;
   totalMinutes -= 330; // Subtract 5h30m for UTC conversion
-  if (totalMinutes < 0) totalMinutes += 1440; // Handle day wrap-around
+  if (totalMinutes < 0) {
+    totalMinutes += 1440;
+    console.log('Adjusted UTC time to previous day');
+  }
   
   const utcHours = Math.floor(totalMinutes / 60);
   const utcMinutes = totalMinutes % 60;
@@ -22,7 +28,7 @@ function scheduleAt(timeStr) {
 // Schedule newsletter to run at 20:47 IST daily
 export const handler = schedule({
   name: 'scheduled-newsletter',
-  schedule: scheduleAt(process.env.SCHEDULE_TIME || '1:06')
+  schedule: scheduleAt(process.env.SCHEDULE_TIME)
 }, async (event) => {
   try {
     await sendDailyNewsletter();
