@@ -186,7 +186,7 @@ export async function sendDailyNewsletter() {
                 <html>
                     <body style="font-family: Arial, sans-serif;">
                         <h1 style="color: #1DA1F2; text-align: center;">ByteSized News</h1>
-                        <p style="text-align: center; color: #657786;">Your Daily Twitter Digest - Delivered at ${process.env.SCHEDULE_TIME || '20:50'} IST</p>
+                        <p style="text-align: center; color: #657786;">Your Daily Twitter Digest - Delivered at ${process.env.SCHEDULE_TIME || '3:25'} IST</p>
                         
                         <div style="max-width: 800px; margin: 0 auto;">
                             ${summary}
