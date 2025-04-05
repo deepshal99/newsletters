@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Twitter Newsletter</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/framer-motion@9.0.0/dist/framer-motion.js"></script>
+    <style>
+        .twitter-blue { background-color: #1DA1F2; }
+        .twitter-blue:hover { background-color: #1a8cd8; }
+        .twitter-border { border-color: #E1E8ED; }
+        .twitter-text { color: #14171A; }
+        .motion-div { transform-origin: center; }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="max-w-2xl mx-auto p-6">
+        <div class="twitter-border border rounded-lg shadow-sm bg-white p-8">
+            <div class="text-center">
+                <h1 class="text-3xl font-bold twitter-text mb-2">Stay Updated with Twitter</h1>
+                <p class="text-gray-600 mb-8">Get a curated daily digest of tweets from your favorite accounts</p>
+            </div>
+
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-sm font-medium twitter-text mb-1">Your Email</label>
+                    <input type="email" id="email" class="w-full px-4 py-2 border twitter-border rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="Enter your email">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium twitter-text mb-1">Twitter Handle</label>
+                    <input type="text" id="handle" class="w-full px-4 py-2 border twitter-border rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="Enter Twitter handle (without @)">
+                </div>
+
+                <button onclick="subscribe()" class="w-full twitter-blue text-white py-3 px-6 rounded-lg font-semibold hover:shadow-md transition-all duration-200 motion-div"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                >
+                    Subscribe to Daily Digest
+                </button>
+
+                <p class="text-center text-gray-500 text-sm mt-4">
+                    We'll send you one email per day at 3:03 AM IST with the best tweets
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function subscribe() {
+            const email = document.getElementById('email').value;
+            const handle = document.getElementById('handle').value.trim();
+
+            if (!email || handle.length === 0) {
+                alert('Please enter both email and Twitter handle');
+                return;
+            }
+
+            try {
+                const response = await fetch('/subscribe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, handle })
+                });
+
+                const result = await response.json();
+                alert(result);
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Subscription failed. Please try again.');
+            }
+        }
+    </script>
+</body>
+</html>
