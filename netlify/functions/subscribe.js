@@ -4,8 +4,9 @@ import * as db from "../../database.js";
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// Use different variable names to avoid conflicts with imported modules
+const functionFilePath = fileURLToPath(import.meta.url);
+const functionDirPath = dirname(functionFilePath);
 
 // Initialize Resend with API key from environment variable
 const resend = new Resend(process.env.RESEND_API_KEY);
