@@ -3,8 +3,8 @@
   publish = "public"
   functions = "netlify/functions"
 
-[functions.newsletter]
-schedule = "36 19 * * *"  # Correct UTC conversion for 1:06 AM IST (19:36 UTC)
+[functions.scheduled-newsletter]
+schedule = "35 20 * * *"  # Correct UTC conversion for 2:05 AM IST (20:35 UTC)
 
 
 
