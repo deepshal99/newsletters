@@ -144,67 +144,7 @@ async function fetchRecentTweetsForHandles(handles) {
 }
 
 // Function to send daily newsletter
-async function sendDailyNewsletter() {
-    try {
-        console.log('Starting daily newsletter process at', getCurrentIST());
-        
-        // Get all active subscriptions
-        const subscriptions = await db.getSubscriptions();
-        
-        if (subscriptions.length === 0) {
-            console.log('No active subscriptions found');
-            return;
-        }
 
-        // Group subscriptions by email
-        const groupedSubscriptions = {};
-        subscriptions.forEach(sub => {
-            if (!groupedSubscriptions[sub.email]) {
-                groupedSubscriptions[sub.email] = [];
-            }
-            groupedSubscriptions[sub.email].push(sub.handle);
-        });
-
-        // Process each email's subscriptions
-        for (const [email, handles] of Object.entries(groupedSubscriptions)) {
-            console.log(`Processing newsletter for ${email} with handles: ${handles.join(', ')}`);
-
-            // Fetch tweets for all handles
-            const tweets = await fetchRecentTweetsForHandles(handles);
-            console.log(`Found ${tweets.length} tweets for ${email}`);
-
-            // Summarize tweets
-            const summary = await summarizeTweets(tweets);
-
-            // Send email
-            const emailContent = `
-                <html>
-                    <body style="font-family: Arial, sans-serif;">
-                        <h1 style="color: #1DA1F2; text-align: center;">ByteSized News</h1>
-                        <p style="text-align: center; color: #657786;">Your Daily Twitter Digest</p>
-                        
-                        <div style="max-width: 800px; margin: 0 auto;">
-                            ${summary}
-                        </div>
-                    </body>
-                </html>
-            `;
-
-            const emailData = {
-                from: 'ByteSize <hello@autodm.in>',
-                to: email,
-                subject: 'Your Daily Twitter Digest',
-                html: emailContent
-            };
-
-            await resend.emails.send(emailData);
-            console.log(`Newsletter sent to ${email} at ${getCurrentIST()}`);
-        }
-    } catch (error) {
-        console.error('Error in daily newsletter:', error);
-        throw error;
-    }
-}
 
 // Function to subscribe email to handles
 async function subscribeEmailToHandles(email, handle) {
@@ -232,7 +172,7 @@ async function subscribeEmailToHandles(email, handle) {
             subject: 'Subscription Confirmation',
             text: `You are now subscribed to @${handles.join(', @')}.
 
-You will receive your daily newsletter at 2:55 AM IST.`
+You will receive your daily newsletter at 2:55 AM IST.`  // You can modify this time here
         };
 
         const emailResponse = await resend.emails.send(confirmationEmail);

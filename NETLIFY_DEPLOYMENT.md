@@ -28,15 +28,10 @@ First, push your code to a Git repository (GitHub, GitLab, or Bitbucket).
 
 ### 3. Configure Environment Variables
 
-In the Netlify dashboard, go to Site settings > Environment variables and add the following:
-
-```
-RETTIWT_API_KEY=your_rettiwt_api_key
-OPENAI_API_KEY=your_openai_api_key
-RESEND_API_KEY=your_resend_api_key
-SUPABASE_URL=your_supabase_url
-SUPABASE_KEY=your_supabase_key
-```
+Add these required environment variables in Netlify's UI:
+- RETTIWT_API_KEY
+- RESEND_API_KEY
+- OPENAI_API_KEY
 
 ### 4. Deploy Your Site
 
@@ -54,8 +49,11 @@ To run the newsletter function on a schedule:
 package = "@netlify/plugin-functions-schedule"
 
   [plugins.inputs]
-  "newsletter" = "0 3 * * *"  # Runs at 3:00 AM UTC daily
+  "newsletter" = "0 3 * * *"  # Auto-converted from IST time
 ```
+
+Add environment variable in Netlify dashboard:
+SCHEDULE_TIME="20:30" # Your preferred IST time in HH:MM format
 
 3. Deploy the updated configuration: `netlify deploy --prod`
 

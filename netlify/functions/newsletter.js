@@ -151,7 +151,7 @@ async function summarizeTweets(tweets) {
 }
 
 // Function to send daily newsletter
-async function sendDailyNewsletter() {
+export async function sendDailyNewsletter() {
     try {
         console.log('Starting daily newsletter process at', getCurrentIST());
         
@@ -188,7 +188,7 @@ async function sendDailyNewsletter() {
                 <html>
                     <body style="font-family: Arial, sans-serif;">
                         <h1 style="color: #1DA1F2; text-align: center;">ByteSized News</h1>
-                        <p style="text-align: center; color: #657786;">Your Daily Twitter Digest</p>
+                        <p style="text-align: center; color: #657786;">Your Daily Twitter Digest - Delivered at ${process.env.SCHEDULE_TIME || '20:50'} IST</p>
                         
                         <div style="max-width: 800px; margin: 0 auto;">
                             ${summary}
@@ -215,7 +215,7 @@ async function sendDailyNewsletter() {
     }
 }
 
-exports.handler = async (event, _context) => {
+export const handler = async (event, _context) => {
   // Set CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
