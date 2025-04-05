@@ -44,13 +44,7 @@ To run the newsletter function on a schedule:
 1. Install Netlify CLI: `npm install -g netlify-cli`
 2. Create a scheduled function in your `netlify.toml` file:
 
-```toml
-[[plugins]]
-package = "@netlify/plugin-functions-schedule"
 
-  [plugins.inputs]
-  "newsletter" = "0 3 * * *"  # Auto-converted from IST time
-```
 
 Add environment variable in Netlify dashboard:
 SCHEDULE_TIME="1:06" # Your preferred IST time in HH:MM format
