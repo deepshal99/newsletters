@@ -197,7 +197,6 @@ async function sendDailyNewsletter() {
                 html: emailContent
             };
 
-            // const response = await resend.emails.send(emailData);
             await resend.emails.send(emailData);
             console.log(`Newsletter sent to ${email} at ${getCurrentIST()}`);
         }
@@ -210,11 +209,21 @@ async function sendDailyNewsletter() {
 // Function to subscribe email to handles
 async function subscribeEmailToHandles(email, handle) {
     try {
+        // Input validation
+        if (!email || !handle) {
+            throw new Error('Email and handle are required');
+        }
+
+        // Ensure database connection is established
+        await db.connectToDatabase();
         // Convert single handle to array if necessary
         const handles = Array.isArray(handle) ? handle : [handle];
 
         // Add subscription to database
-        await db.addSubscription(email, handles);
+        const userId = await db.addSubscription(email, handles);
+        if (!userId) {
+            throw new Error('Failed to add subscription to database');
+        }
 
         // Send confirmation email
         const confirmationEmail = {
@@ -226,9 +235,11 @@ async function subscribeEmailToHandles(email, handle) {
 You will receive your daily newsletter at 2:55 AM IST.`
         };
 
-        const response = await resend.emails.send(confirmationEmail);
-        await resend.emails.send(confirmationEmail);
-        console.log('Confirmation email response:', response);
+        const emailResponse = await resend.emails.send(confirmationEmail);
+        if (!emailResponse) {
+            console.error('Warning: Email confirmation may not have been sent');
+        }
+        console.log('Subscription successful:', { email, handles, userId });
 
         return `Successfully subscribed ${email} to @${handles.join(', @')}. Check your inbox for confirmation!`;
     } catch (error) {
