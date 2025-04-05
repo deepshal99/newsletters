@@ -3,14 +3,13 @@
   publish = "public"
   functions = "netlify/functions"
 
-[functions]
-  scheduled-newsletter = { schedule = "20 15 * * *" }  # 3:20 PM UTC (8:50 PM IST)
-
 [[plugins]]
 package = "@netlify/plugin-functions-schedule"
 
   [plugins.inputs]
-  "scheduled-newsletter" = "20 15 * * *"
+  "scheduled-newsletter" = "36 19 * * *"  # Auto-converted from IST time (1:06 AM IST = 19:36 UTC)
+
+
 
 [dev]
   command = "npm run dev"

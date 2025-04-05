@@ -22,8 +22,8 @@ function scheduleAt(timeStr) {
 // Schedule newsletter to run at 20:47 IST daily
 export const handler = schedule({
   name: 'scheduled-newsletter',
-  schedule: scheduleAt(process.env.SCHEDULE_TIME || '20:50')
-}, async (event) => { // Uses SCHEDULE_TIME env variable in HH:MM IST format
+  schedule: scheduleAt(process.env.SCHEDULE_TIME || '1:06')
+}, async (event) => {
   try {
     await sendDailyNewsletter();
     return {

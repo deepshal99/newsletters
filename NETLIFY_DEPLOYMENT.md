@@ -53,7 +53,7 @@ package = "@netlify/plugin-functions-schedule"
 ```
 
 Add environment variable in Netlify dashboard:
-SCHEDULE_TIME="20:30" # Your preferred IST time in HH:MM format
+SCHEDULE_TIME="1:06" # Your preferred IST time in HH:MM format
 
 3. Deploy the updated configuration: `netlify deploy --prod`
 
