@@ -1,11 +1,6 @@
-import { schedule } from '@netlify/functions';
 import { sendDailyNewsletter } from './newsletter.js';
 
-// Schedule newsletter to run at 2:05 AM IST (20:35 UTC) daily
-export const handler = schedule({
-  name: 'scheduled-newsletter',
-  schedule: '35 20 * * *' // UTC time (20:35 UTC = 2:05 AM IST)
-}, async (event) => {
+export const handler = async (event) => {
   try {
     await sendDailyNewsletter();
     return {
@@ -18,4 +13,4 @@ export const handler = schedule({
       body: JSON.stringify({ error: error.message })
     };
   }
-});
+}
