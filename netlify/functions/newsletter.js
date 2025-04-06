@@ -187,7 +187,7 @@ export async function sendDailyNewsletter() {
                 <html>
                     <body style="font-family: Arial, sans-serif;">
                         <h1 style="color: #1DA1F2; text-align: center;">ByteSized News</h1>
-                        <p style="text-align: center; color: #657786;">Your daily tech digest from 2:55 PM IST:</p>
+                        <p style="text-align: center; color: #657786;">Your daily tech digest from 3:00 PM IST:</p>
                         
                         <div style="max-width: 800px; margin: 0 auto;">
                             ${summary}
@@ -233,7 +233,7 @@ export async function sendDailyNewsletter() {
 
 import { schedule } from '@netlify/functions';
 
-export const handler = schedule("35 8 * * *", async () => {
+export const handler = schedule("30 9 * * *", async () => {
   try {
     await sendDailyNewsletter();
     return {
