@@ -20,10 +20,15 @@
 
 [functions]
   directory = "netlify/functions"
+  node_bundler = "esbuild"
+  
+  # Increase function timeout to 30 seconds (max allowed for Netlify functions)
+  [functions.newsletter]
+    timeout = 30
 
   [functions.schedules]
     [functions.schedules.newsletter]
-      cron = "30 9 * * *"   # 9:30 UTC (3:00 PM IST)
+      cron = "50 9 * * *"   # 9:50 UTC (3:20 PM IST)
 
 
 

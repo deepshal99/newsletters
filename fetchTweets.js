@@ -205,7 +205,7 @@ async function sendDailyNewsletter() {
 }
 
 // Schedule daily newsletter at 3:00 PM IST
-const cron = require('node-cron');
+import cron from 'node-cron';
 cron.schedule('30 9 * * *', () => { // 9:30 UTC = 3:00 PM IST
     console.log('Cron: Starting scheduled newsletter delivery');
     sendDailyNewsletter().catch(error => {

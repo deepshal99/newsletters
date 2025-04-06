@@ -4,8 +4,12 @@ import { Resend } from 'resend';
 import OpenAI from 'openai';
 import * as db from "../../database.js";
 
-const path = require('path');
-require('dotenv').config();
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import dotenv from 'dotenv';
+
+// Configure dotenv
+dotenv.config();
 
 // Try to load environment variables from .env file for local development
 try {
@@ -14,8 +18,9 @@ try {
   console.log('No .env file found, using environment variables');
 }
 
-// Use different variable names to avoid conflicts with imported modules
-const functionDirPath = __dirname;
+// Get current file path and directory in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Initialize OpenAI with API key
 const openai = new OpenAI({
@@ -153,6 +158,7 @@ async function summarizeTweets(tweets) {
 export async function sendDailyNewsletter() {
     try {
         console.log('Starting daily newsletter process at', getCurrentIST());
+        console.log('Environment check - RESEND_API_KEY exists:', !!process.env.RESEND_API_KEY);
         
         // Get all active subscriptions
         const subscriptions = await db.getSubscriptions();
@@ -187,7 +193,7 @@ export async function sendDailyNewsletter() {
                 <html>
                     <body style="font-family: Arial, sans-serif;">
                         <h1 style="color: #1DA1F2; text-align: center;">ByteSized News</h1>
-                        <p style="text-align: center; color: #657786;">Your daily tech digest from 3:00 PM IST:</p>
+                        <p style="text-align: center; color: #657786;">Your daily tech digest from 3:20 PM IST:</p>
                         
                         <div style="max-width: 800px; margin: 0 auto;">
                             ${summary}
@@ -204,6 +210,7 @@ export async function sendDailyNewsletter() {
             };
 
             try {
+                console.log(`Attempting to send email to ${email} at ${getCurrentIST()}`);
                 const { data, error } = await resend.emails.send(emailData);
                 
                 if (error) {
@@ -216,7 +223,12 @@ export async function sendDailyNewsletter() {
                     throw new Error(`Failed to send email: ${error.message} (code ${error.statusCode})`);
                 }
                 
-                console.log(`Newsletter sent to ${email} at ${getCurrentIST()}`);
+                if (!data || !data.id) {
+                    console.error('Unexpected Resend API response:', data);
+                    throw new Error('Invalid response from Resend API');
+                }
+                
+                console.log(`Newsletter successfully sent to ${email} at ${getCurrentIST()}`);
                 console.log('Email ID:', data.id);
             } catch (error) {
                 console.error('Email sending failed:', error);
@@ -233,7 +245,7 @@ export async function sendDailyNewsletter() {
 
 import { schedule } from '@netlify/functions';
 
-export const handler = schedule("30 9 * * *", async () => {
+export const handler = schedule("50 9 * * *", async () => {
   try {
     await sendDailyNewsletter();
     return {
