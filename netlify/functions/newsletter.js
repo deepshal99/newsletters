@@ -47,109 +47,148 @@ function getCurrentIST() {
 }
 
 // Function to fetch tweets from last 24 hours
+// Add pagination configuration
+const LIMIT_PER_PAGE = 20;
+const MAX_PAGES = 3;
+const API_TIMEOUT = 5000; // 5 seconds
+
+// Helper function with timeout handling
+async function withTimeout(promise, timeout) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Request timeout')), timeout)
+    )
+  ]);
+}
+
+// Modified fetchRecentTweetsForHandles with pagination
 async function fetchRecentTweetsForHandles(handles) {
-    try {
-        console.log(`Fetching tweets for ${handles.length} handles`);
-        const allTweets = [];
-    
-        // Helper function to segregate tweets into main tweets and replies
-        // deno-lint-ignore no-inner-declarations
-        function segregateTweet(tweets) {
-            const categorizedTweets = {
-                mainTweets: [],
-                replies: []
-            };
-    
-            tweets.forEach(tweet => {
-                if (tweet.replyTo === undefined) {
-                    // Categorize as main tweet
-                    categorizedTweets.mainTweets.push(tweet);
-                } else {
-                    // Categorize as reply
-                    categorizedTweets.replies.push(tweet);
-                }
-            });
+  const allTweets = [];
+  
+  for (const handle of handles) {
+    let page = 1;
+    let hasMore = true;
 
-            return categorizedTweets;
-        }
+    while (hasMore && page <= MAX_PAGES) {
+      try {
+        const tweets = await withTimeout(
+          rettiwt.tweet.search({
+            fromUsers: [handle],
+            words: [],
+            limit: LIMIT_PER_PAGE,
+            page: page
+          }),
+          API_TIMEOUT
+        );
 
-        for (const handle of handles) {
-            console.log(`Fetching tweets for handle: @${handle}`);
-            const tweets = await rettiwt.tweet.search({
-                fromUsers: [handle],
-                words: [],
-                limit: 100
-            });
+        const categorized = segregateTweet(tweets.list);
+        allTweets.push(...categorized.mainTweets);
+        
+        hasMore = tweets.list.length === LIMIT_PER_PAGE;
+        page++;
 
-            const categorizedTweets = segregateTweet(tweets.list);
-            console.log(`Found ${categorizedTweets.mainTweets.length} main tweets and ${categorizedTweets.replies.length} replies for @${handle}`);
-            allTweets.push(...categorizedTweets.mainTweets);
-        }
-
-        return allTweets;
-    } catch (error) {
-        console.error('Error fetching tweets:', error);
-        throw error;
+        // Add delay between requests
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (error) {
+        console.error(`Error fetching page ${page} for @${handle}:`, error.message);
+        break;
+      }
     }
+  }
+  return allTweets;
+}
+
+// Function to segregate tweets into main tweets and replies
+// deno-lint-ignore no-inner-declarations
+function segregateTweet(tweets) {
+    const categorizedTweets = {
+        mainTweets: [],
+        replies: []
+    };
+
+    tweets.forEach(tweet => {
+        if (tweet.replyTo === undefined) {
+            // Categorize as main tweet
+            categorizedTweets.mainTweets.push(tweet);
+        } else {
+            // Categorize as reply
+            categorizedTweets.replies.push(tweet);
+        }
+    });
+
+    return categorizedTweets;
 }
 
 // Function to summarize tweets using OpenAI
+// Modified summarizeTweets with caching
+const summaryCache = new Map();
+
 async function summarizeTweets(tweets) {
-    try {
-        // Group tweets by username
-        const groupedTweets = {};
-        tweets.forEach(tweet => {
-            const username = tweet.tweetBy.userName;
-            if (!groupedTweets[username]) {
-                groupedTweets[username] = [];
-            }
-            groupedTweets[username].push(tweet);
-        });
+  // Cache key generation
+  const cacheKey = tweets.map(t => t.id).join('-');
+  
+  if (summaryCache.has(cacheKey)) {
+    return summaryCache.get(cacheKey);
+  }
 
-        let summary = 'Your daily personalized newsletter\n\n';
+  try {
+      // Group tweets by username
+      const groupedTweets = {};
+      tweets.forEach(tweet => {
+          const username = tweet.tweetBy.userName;
+          if (!groupedTweets[username]) {
+              groupedTweets[username] = [];
+          }
+          groupedTweets[username].push(tweet);
+      });
 
-        // Generate summary for each user
-        for (const [username, userTweets] of Object.entries(groupedTweets)) {
-            const tweetTexts = userTweets.map(tweet => tweet.fullText).join('\n\n');
+      let summary = 'Your daily personalized newsletter\n\n';
 
-            const completion = await openai.chat.completions.create({
-                model: "gpt-4o-mini",
-                messages: [
-                    {
-                      role: "system",
-                      content: `You are an assistant that summarizes tweets from a Twitter user and formats them into modern, clean HTML suitable for embedding in an email newsletter. 
-                  
-                  Follow this structure strictly:
-                  - Do NOT include <html>, <head>, or <body> tags.
-                  - Wrap each summary in a <div> block with:
-                    - white background
-                    - light border
-                    - border-radius
-                    - padding and subtle shadow
-                  - Use an <h2> tag for the Twitter handle header with an emoji (📢).
-                  - Use <ul> with <li> for bullet points.
-                  - Use <strong> to highlight key phrases or ideas.
-                  - If applicable, include links using <a> tags with a blue color.
-                  - Return only the single block for one Twitter handle—do not combine multiple handles or return plain text.`
-                    },
-                    {
-                      role: "user",
-                      content: `Summarize tweets from @${username} into a structured HTML block suitable for embedding in a modern email newsletter. Follow the style and structure exactly as described above. Use concise bullet points with <strong> emphasis, and wrap the entire summary in a styled <div>.\n\nTweets:\n${tweetTexts}`
-                    }
-                  ],
-                temperature: 0.7,
-                max_tokens: 300
-            });
+      // Generate summary for each user
+      for (const [username, userTweets] of Object.entries(groupedTweets)) {
+          const tweetTexts = userTweets.map(tweet => tweet.fullText).join('\n\n');
 
-            summary += `Updates from @${username}\n`;
-            summary += completion.choices[0].message.content + '\n\n';
-        }
+          const completion = await openai.chat.completions.create({
+              model: "gpt-4o-mini",
+              messages: [
+                  {
+                    role: "system",
+                    content: `You are an assistant that summarizes tweets from a Twitter user and formats them into modern, clean HTML suitable for embedding in an email newsletter. 
+                
+                Follow this structure strictly:
+                - Do NOT include <html>, <head>, or <body> tags.
+                - Wrap each summary in a <div> block with:
+                  - white background
+                  - light border
+                  - border-radius
+                  - padding and subtle shadow
+                - Use an <h2> tag for the Twitter handle header with an emoji (📢).
+                - Use <ul> with <li> for bullet points.
+                - Use <strong> to highlight key phrases or ideas.
+                - If applicable, include links using <a> tags with a blue color.
+                - Return only the single block for one Twitter handle—do not combine multiple handles or return plain text.`
+                  },
+                  {
+                    role: "user",
+                    content: `Summarize tweets from @${username} into a structured HTML block suitable for embedding in a modern email newsletter. Follow the style and structure exactly as described above. Use concise bullet points with <strong> emphasis, and wrap the entire summary in a styled <div>.\n\nTweets:\n${tweetTexts}`
+                  }
+                ],
+              temperature: 0.7,
+              max_tokens: 300
+          });
 
-        return summary;
-    } catch (error) {
-        console.error('Error summarizing tweets:', error);
-        throw error;
-    }
+          summary += `Updates from @${username}\n`;
+          summary += completion.choices[0].message.content + '\n\n';
+      }
+
+      return summary;
+  } catch (error) {
+      console.error('Error summarizing tweets:', error);
+      throw error;
+  }
+  summaryCache.set(cacheKey, summary);
+  return summary;
 }
 
 // Function to send daily newsletter
@@ -191,7 +230,7 @@ export async function sendDailyNewsletter() {
                 <html>
                     <body style="font-family: Arial, sans-serif;">
                         <h1 style="color: #1DA1F2; text-align: center;">ByteSized News</h1>
-                        <p style="text-align: center; color: #657786;">Your daily tech digest from 4:30 PM IST:</p>
+                        <p style="text-align: center; color: #657786;">Your daily tech digest from 7 PM IST:</p>
                         
                         <div style="max-width: 800px; margin: 0 auto;">
                             ${summary}
@@ -243,7 +282,7 @@ export async function sendDailyNewsletter() {
 
 import { schedule } from '@netlify/functions';
 
-export const handler = schedule("0 11 * * *", async () => {
+export const handler = schedule("30 13 * * *", async () => { // 7 PM IST (13:30 UTC)
   try {
     await sendDailyNewsletter();
     return {
