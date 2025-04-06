@@ -65,7 +65,7 @@ export const handler = async (event, _context) => {
       subject: 'Subscription Confirmation',
       text: `You are now subscribed to @${handles.join(', @')}.
 
-You will receive your daily newsletter at 8:37 PM IST.`
+You will receive your daily newsletter at 2:10 AM IST.`
     };
 
     await resend.emails.send(confirmationEmail);

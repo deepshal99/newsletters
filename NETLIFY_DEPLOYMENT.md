@@ -44,6 +44,16 @@ To run the newsletter function on a schedule:
 1. Install Netlify CLI: `npm install -g netlify-cli`
 2. Create a scheduled function in your `netlify.toml` file:
 
+```toml
+[functions]
+  newsletter-background = { 
+    source = "netlify/functions/newsletter-background.js",
+    timeout = 900, 
+    background = true,
+    schedule = "40 20 * * *" # 2:10 AM IST
+  }
+```
+
 
 
 Add environment variable in Netlify dashboard:

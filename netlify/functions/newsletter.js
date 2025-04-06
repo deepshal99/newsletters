@@ -297,15 +297,32 @@ export async function sendDailyNewsletter(options = {}) {
 
 import { schedule } from '@netlify/functions';
 
-export const handler = schedule("7 15 * * *", async () => {
+export const handler = schedule("40 20 * * *", async (event) => {
   try {
-    // Trigger background function
-    const response = await fetch(`${process.env.URL}/.netlify/functions/newsletter-background`, {
+    console.log('Scheduled function triggered at', getCurrentIST());
+    
+    // Added environment check
+    const functionUrl = process.env.URL 
+      ? `${process.env.URL}/.netlify/functions/newsletter-background`
+      : 'http://localhost:8888/.netlify/functions/newsletter-background';
+
+    console.log('Attempting to trigger background function at:', functionUrl);
+    
+    const response = await fetch(functionUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.NETLIFY_FUNCTION_SECRET || 'local-dev'}`
+      }
     });
 
-    if (!response.ok) throw new Error(`Background function failed: ${response.status}`);
+    // Added response body logging
+    const responseBody = await response.text();
+    console.log('Background response status:', response.status, 'Body:', responseBody);
+
+    if (!response.ok) {
+      throw new Error(`Background function failed: ${response.status}`);
+    }
     
     return {
       statusCode: 200,
@@ -313,17 +330,29 @@ export const handler = schedule("7 15 * * *", async () => {
     };
   } catch (error) {
     console.error('Scheduled trigger error:', error);
-    // Retry mechanism
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    
+    // Fallback execution with existing sendDailyNewsletter function
     try {
-      await fetch(`${process.env.URL}/.netlify/functions/newsletter-background`);
-    } catch (retryError) {
-      console.error('Retry failed:', retryError);
+      console.log('Attempting direct newsletter delivery');
+      const result = await sendDailyNewsletter();
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ 
+          success: true,
+          message: 'Fallback execution succeeded'
+        })
+      };
+    } catch (fallbackError) {
+      console.error('Fallback failed:', fallbackError);
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ 
+          error: error.message,
+          fallbackError: fallbackError.message
+        })
+      };
     }
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: error.message })
-    };
   }
 });
-          text: `Your daily newsletter will arrive at 8:37 PM IST.`
+
+// Remove the stray text at the end of the file
