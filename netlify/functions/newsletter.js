@@ -19,7 +19,7 @@ try {
 }
 
 // Get current file path and directory in ES modules
-const __filename = fileURLToPath(import.meta.url);
+const __filename = process.env.NETLIFY ? '/var/task/netlify/functions/newsletter.js' : fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Initialize OpenAI with API key
@@ -193,7 +193,7 @@ export async function sendDailyNewsletter() {
                 <html>
                     <body style="font-family: Arial, sans-serif;">
                         <h1 style="color: #1DA1F2; text-align: center;">ByteSized News</h1>
-                        <p style="text-align: center; color: #657786;">Your daily tech digest from 3:20 PM IST:</p>
+                        <p style="text-align: center; color: #657786;">Your daily tech digest from 3:30 PM IST:</p>
                         
                         <div style="max-width: 800px; margin: 0 auto;">
                             ${summary}
