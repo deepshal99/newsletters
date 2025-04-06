@@ -172,7 +172,7 @@ async function subscribeEmailToHandles(email, handle) {
             subject: 'Subscription Confirmation',
             text: `You are now subscribed to @${handles.join(', @')}.
 
-You will receive your daily newsletter at 2:55 AM IST.`  // You can modify this time here
+You will receive your daily newsletter at 2:05 PM IST.`  // You can modify this time here
         };
 
         const emailResponse = await resend.emails.send(confirmationEmail);
