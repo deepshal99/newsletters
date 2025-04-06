@@ -143,8 +143,77 @@ async function fetchRecentTweetsForHandles(handles) {
     }
 }
 
-// Function to send daily newsletter
+async function sendDailyNewsletter() {
+    try {
+        console.log('[Newsletter] Starting newsletter process');
+        const startTime = Date.now();
+        
+        // 1. Get all subscriptions
+        console.time('[Newsletter] Database query');
+        const subscriptions = await db.getSubscriptions();
+        console.timeEnd('[Newsletter] Database query');
+        console.log(`[Newsletter] Found ${subscriptions.length} subscriptions`);
 
+        // 2. Process each subscription
+        for (const [index, sub] of subscriptions.entries()) {
+            const subStart = Date.now();
+            console.log(`[Newsletter] Processing ${index + 1}/${subscriptions.length}: ${sub.email} (${sub.handles.length} handles)`);
+            
+            try {
+                // 3. Fetch tweets
+                console.time(`[Newsletter] Tweet fetch ${sub.email}`);
+                const tweets = await fetchRecentTweetsForHandles(sub.handles);
+                console.timeEnd(`[Newsletter] Tweet fetch ${sub.email}`);
+                console.log(`[Newsletter] Fetched ${tweets.length} tweets for ${sub.email}`);
+
+                // 4. Summarize tweets
+                console.time(`[Newsletter] Summarization ${sub.email}`);
+                const summary = await summarizeTweets(tweets);
+                console.timeEnd(`[Newsletter] Summarization ${sub.email}`);
+                console.log(`[Newsletter] Generated summary for ${sub.email}`);
+
+                // 5. Send email
+                console.time(`[Newsletter] Email send ${sub.email}`);
+                const emailData = {
+                    from: 'ByteSize <hello@autodm.in>',
+                    to: sub.email,
+                    subject: `Your Twitter Digest - ${new Date().toLocaleDateString('en-IN')}`,
+                    html: summary
+                };
+                
+                const emailResponse = await resend.emails.send(emailData);
+                console.timeEnd(`[Newsletter] Email send ${sub.email}`);
+                console.log(`[Newsletter] Email sent to ${sub.email}`, emailResponse.id);
+                
+                // 6. Update last sent time
+                await db.updateLastSent(sub.user_id);
+                
+            } catch (error) {
+                console.error(`[Newsletter] Failed processing ${sub.email}:`, error);
+                await db.logError(sub.user_id, `Delivery failed: ${error.message}`);
+                continue; // Continue with next subscription
+            }
+            
+            console.log(`[Newsletter] Completed ${sub.email} in ${Date.now() - subStart}ms`);
+        }
+        
+        console.log(`[Newsletter] Completed all subscriptions in ${Date.now() - startTime}ms`);
+    } catch (error) {
+        console.error('[Newsletter] Critical failure:', error);
+        throw error;
+    }
+}
+
+// Schedule daily newsletter at 2:05 PM IST
+const cron = require('node-cron');
+cron.schedule('25 9 * * *', () => {
+    console.log('Cron: Starting scheduled newsletter delivery');
+    sendDailyNewsletter().catch(error => {
+        console.error('Cron: Newsletter job failed:', error);
+    });
+}, {
+    timezone: 'Asia/Kolkata'
+});
 
 // Function to subscribe email to handles
 async function subscribeEmailToHandles(email, handle) {
