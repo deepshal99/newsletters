@@ -4,8 +4,7 @@ import { Resend } from 'resend';
 import OpenAI from 'openai';
 import * as db from "../../database.js";
 
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+
 import dotenv from 'dotenv';
 
 // Configure dotenv
@@ -19,8 +18,7 @@ try {
 }
 
 // Get current file path and directory in ES modules
-const __filename = process.env.NETLIFY ? '/var/task/netlify/functions/newsletter.js' : fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+
 
 // Initialize OpenAI with API key
 const openai = new OpenAI({
@@ -193,7 +191,7 @@ export async function sendDailyNewsletter() {
                 <html>
                     <body style="font-family: Arial, sans-serif;">
                         <h1 style="color: #1DA1F2; text-align: center;">ByteSized News</h1>
-                        <p style="text-align: center; color: #657786;">Your daily tech digest from 3:35 PM IST:</p>
+                        <p style="text-align: center; color: #657786;">Your daily tech digest from 4:30 PM IST:</p>
                         
                         <div style="max-width: 800px; margin: 0 auto;">
                             ${summary}
@@ -245,7 +243,7 @@ export async function sendDailyNewsletter() {
 
 import { schedule } from '@netlify/functions';
 
-export const handler = schedule("05 10 * * *", async () => {
+export const handler = schedule("0 11 * * *", async () => {
   try {
     await sendDailyNewsletter();
     return {
