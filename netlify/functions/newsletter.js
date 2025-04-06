@@ -3,6 +3,7 @@ import { Rettiwt } from 'rettiwt-api';
 import { Resend } from 'resend';
 import OpenAI from 'openai';
 import * as db from "../../database.js";
+
 const path = require('path');
 require('dotenv').config();
 
@@ -186,7 +187,7 @@ export async function sendDailyNewsletter() {
                 <html>
                     <body style="font-family: Arial, sans-serif;">
                         <h1 style="color: #1DA1F2; text-align: center;">ByteSized News</h1>
-                        <p style="text-align: center; color: #657786;">Your daily tech digest from 1:00 PM IST:</p>
+                        <p style="text-align: center; color: #657786;">Your daily tech digest from 2:00 PM IST:</p>
                         
                         <div style="max-width: 800px; margin: 0 auto;">
                             ${summary}
@@ -230,55 +231,20 @@ export async function sendDailyNewsletter() {
     }
 }
 
-export const handler = async (event, _context) => {
-  // Set CORS headers
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS'
-  };
+import { schedule } from '@netlify/functions';
 
-  // Handle scheduled execution (no HTTP method)
-  if (!event.httpMethod) {
-    try {
-      await sendDailyNewsletter();
-      return { statusCode: 200 };
-    } catch (error) {
-      return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
-    }
-  };
-
-  // Handle preflight OPTIONS request
-  if (event.httpMethod === 'OPTIONS') {
+export const handler = schedule("0 8 * * *", async () => {
+  try {
+    await sendDailyNewsletter();
     return {
       statusCode: 200,
-      headers,
-      body: ''
+      body: JSON.stringify({ success: true })
+    };
+  } catch (error) {
+    console.error('Scheduled newsletter error:', error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: error.message })
     };
   }
-
-  // Handle manual HTTP execution
-  if (event.httpMethod === 'POST') {
-    try {
-      const result = await sendDailyNewsletter();
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify(result)
-      };
-    } catch (error) {
-      console.error('Newsletter error:', error);
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({ error: error.message })
-      };
-    }
-  }
-
-  return {
-    statusCode: 405,
-    headers,
-    body: JSON.stringify({ error: 'Method not allowed' })
-  };
-};
+});

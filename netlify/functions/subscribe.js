@@ -3,6 +3,7 @@ import { Resend } from 'resend';
 import * as db from "../../database.js";
 import dotenv from 'dotenv';
 
+
 // Try to load environment variables from .env file for local development
 try {
   dotenv.config();
@@ -64,7 +65,7 @@ export const handler = async (event, _context) => {
       subject: 'Subscription Confirmation',
       text: `You are now subscribed to @${handles.join(', @')}.
 
-You will receive your daily newsletter at ${process.env.SCHEDULE_TIME || '3:25'} IST.`
+You will receive your daily newsletter at 2:00 PM IST.`
     };
 
     await resend.emails.send(confirmationEmail);

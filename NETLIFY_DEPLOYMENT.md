@@ -47,7 +47,6 @@ To run the newsletter function on a schedule:
 
 
 Add environment variable in Netlify dashboard:
-SCHEDULE_TIME="13:00" # Your preferred IST time in HH:MM format
 
 3. Deploy the updated configuration: `netlify deploy --prod`
 
