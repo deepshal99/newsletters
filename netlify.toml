@@ -28,7 +28,7 @@
 
   [functions.schedules]
     [functions.schedules.newsletter]
-      cron = "00 10 * * *"   # 10:00 UTC (3:30 PM IST)
+      cron = "05 10 * * *"   # 10:05 UTC (3:35 PM IST)
 
 
 
