@@ -186,7 +186,7 @@ export async function sendDailyNewsletter() {
                 <html>
                     <body style="font-family: Arial, sans-serif;">
                         <h1 style="color: #1DA1F2; text-align: center;">ByteSized News</h1>
-                        <p style="text-align: center; color: #657786;">Your Daily Twitter Digest - Delivered at ${process.env.SCHEDULE_TIME || '3:25'} IST</p>
+                        <p style="text-align: center; color: #657786;">Your daily tech digest from 1:00 PM IST:</p>
                         
                         <div style="max-width: 800px; margin: 0 auto;">
                             ${summary}
@@ -206,8 +206,13 @@ export async function sendDailyNewsletter() {
                 const { data, error } = await resend.emails.send(emailData);
                 
                 if (error) {
-                    console.error('Resend API Error:', error);
-                    throw new Error(`Failed to send email: ${error.message}`);
+                    console.error('Resend API Error Details:', {
+                        statusCode: error.statusCode,
+                        name: error.name,
+                        message: error.message,
+                        headers: error.headers
+                    });
+                    throw new Error(`Failed to send email: ${error.message} (code ${error.statusCode})`);
                 }
                 
                 console.log(`Newsletter sent to ${email} at ${getCurrentIST()}`);
@@ -230,7 +235,17 @@ export const handler = async (event, _context) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
+    'Access-Control-Allow-Methods': 'POST, OPTIONS'
+  };
+
+  // Handle scheduled execution (no HTTP method)
+  if (!event.httpMethod) {
+    try {
+      await sendDailyNewsletter();
+      return { statusCode: 200 };
+    } catch (error) {
+      return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
+    }
   };
 
   // Handle preflight OPTIONS request
@@ -242,21 +257,28 @@ export const handler = async (event, _context) => {
     };
   }
 
-  try {
-    const result = await sendDailyNewsletter();
-    
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify(result)
-    };
-  } catch (error) {
-    console.error('Newsletter error:', error);
-    
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ error: error.message })
-    };
+  // Handle manual HTTP execution
+  if (event.httpMethod === 'POST') {
+    try {
+      const result = await sendDailyNewsletter();
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify(result)
+      };
+    } catch (error) {
+      console.error('Newsletter error:', error);
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ error: error.message })
+      };
+    }
   }
+
+  return {
+    statusCode: 405,
+    headers,
+    body: JSON.stringify({ error: 'Method not allowed' })
+  };
 };

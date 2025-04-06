@@ -3,8 +3,9 @@
   publish = "public"
   functions = "netlify/functions"
 
-[functions.scheduled-newsletter]
-schedule = "06 22 * * *"  # 3:36 AM IST (22:06 UTC)
+[functions.newsletter]
+path = "netlify/functions/newsletter.js"
+schedule = "30 7 * * *"  # 1:00 PM IST (7:30 UTC)
 
 
 
@@ -20,6 +21,11 @@ schedule = "06 22 * * *"  # 3:36 AM IST (22:06 UTC)
   status = 200
 
 
+    },
+    {
+      "old_str":
+
+
 
 [[redirects]]
   from = "/view"
@@ -30,3 +36,8 @@ schedule = "06 22 * * *"  # 3:36 AM IST (22:06 UTC)
   from = "/*"
   to = "/index.html"
   status = 200
+
+
+    },
+    {
+      "old_str":
