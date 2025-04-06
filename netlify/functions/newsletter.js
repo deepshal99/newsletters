@@ -297,7 +297,7 @@ export async function sendDailyNewsletter(options = {}) {
 
 import { schedule } from '@netlify/functions';
 
-export const handler = schedule("55 14 * * *", async () => {
+export const handler = schedule("7 15 * * *", async () => {
   try {
     // Trigger background function
     const response = await fetch(`${process.env.URL}/.netlify/functions/newsletter-background`, {
@@ -326,3 +326,4 @@ export const handler = schedule("55 14 * * *", async () => {
     };
   }
 });
+          text: `Your daily newsletter will arrive at 8:37 PM IST.`

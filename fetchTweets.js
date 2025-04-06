@@ -204,9 +204,9 @@ async function sendDailyNewsletter() {
     }
 }
 
-// Schedule daily newsletter at 3:00 PM IST
+// Schedule daily newsletter at 8:37 PM IST
 import cron from 'node-cron';
-cron.schedule('30 9 * * *', () => { // 9:30 UTC = 3:00 PM IST
+cron.schedule('7 15 * * *', () => { // 15:07 UTC = 8:37 PM IST
     console.log('Cron: Starting scheduled newsletter delivery');
     sendDailyNewsletter().catch(error => {
         console.error('Cron: Newsletter job failed:', error);
@@ -241,7 +241,7 @@ async function subscribeEmailToHandles(email, handle) {
             subject: 'Subscription Confirmation',
             text: `You are now subscribed to @${handles.join(', @')}.
 
-You will receive your daily newsletter at 3:00 PM IST.`  // You can modify this time here
+You will receive your daily newsletter at 8:37 PM IST.`  // You can modify this time here
         };
 
         const emailResponse = await resend.emails.send(confirmationEmail);
