@@ -1,43 +1,9 @@
+[functions]
+  newsletter-background = "netlify/functions/newsletter-background.js"
+  test-background = "netlify/functions/test-background.js"
+  newsletter-background = { timeout = 900, background = true, schedule = "55 14 * * *" }
+  newsletter = { timeout = 10 }
+
 [build]
   command = "npm install"
-  publish = "public"
   functions = "netlify/functions"
-
-
-
-
-
-[dev]
-  command = "npm run dev"
-  port = 3000
-  publish = "public"
-  functions = "netlify/functions"
-
-[[redirects]]
-  from = "/subscribe"
-  to = "/.netlify/functions/subscribe"
-  status = 200
-
-[functions]
-  directory = "netlify/functions"
-  node_bundler = "esbuild"
-  
-  # Increase function timeout to 30 seconds (max allowed for Netlify functions)
-  [functions.newsletter]
-    timeout = 30
-
-  [functions.schedules]
-    [functions.schedules.newsletter]
-      cron = "30 13 * * *"   # 13:30 UTC (7:00 PM IST)
-
-
-
-[[redirects]]
-  from = "/view"
-  to = "/.netlify/functions/view"
-  status = 200
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200

@@ -3,8 +3,6 @@ import { Rettiwt } from 'rettiwt-api';
 import { Resend } from 'resend';
 import OpenAI from 'openai';
 import * as db from "../../database.js";
-
-
 import dotenv from 'dotenv';
 
 // Configure dotenv
@@ -16,9 +14,6 @@ try {
 } catch (error) {
   console.log('No .env file found, using environment variables');
 }
-
-// Get current file path and directory in ES modules
-
 
 // Initialize OpenAI with API key
 const openai = new OpenAI({
@@ -35,7 +30,6 @@ try {
     if (!process.env.RETTIWT_API_KEY) {
         throw new Error('RETTIWT_API_KEY environment variable is not set');
     }
-
     rettiwt = new Rettiwt({ apiKey: process.env.RETTIWT_API_KEY });
 } catch (error) {
     console.error('Error initializing Rettiwt:', error.message);
@@ -66,7 +60,8 @@ async function withTimeout(promise, timeout) {
 async function fetchRecentTweetsForHandles(handles) {
   const allTweets = [];
   
-  for (const handle of handles) {
+  // Process handles in parallel
+  await Promise.all(handles.map(async (handle) => {
     let page = 1;
     let hasMore = true;
 
@@ -95,12 +90,11 @@ async function fetchRecentTweetsForHandles(handles) {
         break;
       }
     }
-  }
+  }));
   return allTweets;
 }
 
 // Function to segregate tweets into main tweets and replies
-// deno-lint-ignore no-inner-declarations
 function segregateTweet(tweets) {
     const categorizedTweets = {
         mainTweets: [],
@@ -125,12 +119,8 @@ function segregateTweet(tweets) {
 const summaryCache = new Map();
 
 async function summarizeTweets(tweets) {
-  // Cache key generation
-  const cacheKey = tweets.map(t => t.id).join('-');
-  
-  if (summaryCache.has(cacheKey)) {
-    return summaryCache.get(cacheKey);
-  }
+  // Handle empty tweets case
+  if (!tweets || tweets.length === 0) return '';
 
   try {
       // Group tweets by username
@@ -146,53 +136,74 @@ async function summarizeTweets(tweets) {
       let summary = 'Your daily personalized newsletter\n\n';
 
       // Generate summary for each user
-      for (const [username, userTweets] of Object.entries(groupedTweets)) {
+      // Process all users in parallel
+      const summaries = await Promise.all(
+        Object.entries(groupedTweets).map(async ([username, userTweets]) => {
           const tweetTexts = userTweets.map(tweet => tweet.fullText).join('\n\n');
+          
+          // Generate cache key with date
+          const cacheKey = `${username}-${new Date().toISOString().slice(0,10)}`;
+          
+          if (summaryCache.has(cacheKey)) {
+            return summaryCache.get(cacheKey);
+          }
 
           const completion = await openai.chat.completions.create({
-              model: "gpt-4o-mini",
-              messages: [
-                  {
-                    role: "system",
-                    content: `You are an assistant that summarizes tweets from a Twitter user and formats them into modern, clean HTML suitable for embedding in an email newsletter. 
-                
-                Follow this structure strictly:
-                - Do NOT include <html>, <head>, or <body> tags.
-                - Wrap each summary in a <div> block with:
-                  - white background
-                  - light border
-                  - border-radius
-                  - padding and subtle shadow
-                - Use an <h2> tag for the Twitter handle header with an emoji (📢).
-                - Use <ul> with <li> for bullet points.
-                - Use <strong> to highlight key phrases or ideas.
-                - If applicable, include links using <a> tags with a blue color.
-                - Return only the single block for one Twitter handle—do not combine multiple handles or return plain text.`
-                  },
-                  {
-                    role: "user",
-                    content: `Summarize tweets from @${username} into a structured HTML block suitable for embedding in a modern email newsletter. Follow the style and structure exactly as described above. Use concise bullet points with <strong> emphasis, and wrap the entire summary in a styled <div>.\n\nTweets:\n${tweetTexts}`
-                  }
-                ],
-              temperature: 0.7,
-              max_tokens: 300
+            model: "gpt-4o",
+            messages: [
+              {
+                role: "system",
+                content: `Generate concise HTML tweet summary in this structure:
+<div style="background:white; border:1px solid #eee; border-radius:8px; padding:16px; margin-bottom:16px; box-shadow:0 2px 4px rgba(0,0,0,0.05)">
+  <h2>📢 @${username}</h2>
+  <ul>{{tweet_points}}</ul>
+</div>`
+              },
+              {
+                role: "user",
+                content: `Summarize tweets from @${username} into a structured HTML block suitable for embedding in a modern email newsletter. Follow the style and structure exactly as described above. Use concise bullet points with <strong> emphasis, and wrap the entire summary in a styled <div>.\n\nTweets:\n${tweetTexts}`
+              }
+            ],
+            temperature: 0.7,
+            max_tokens: 300
           });
 
-          summary += `Updates from @${username}\n`;
-          summary += completion.choices[0].message.content + '\n\n';
-      }
+          const content = completion.choices[0].message.content;
+          summaryCache.set(cacheKey, content);
+          return content;
+        })
+      );
 
+      summary = summaries.join('\n\n');
       return summary;
   } catch (error) {
       console.error('Error summarizing tweets:', error);
       throw error;
   }
-  summaryCache.set(cacheKey, summary);
-  return summary;
+}
+
+// Helper function for exponential backoff retry
+async function retryWithBackoff(operation, maxRetries = 3, initialDelay = 1000) {
+    let retries = 0;
+    while (true) {
+        try {
+            return await operation();
+        } catch (error) {
+            if (error?.statusCode === 429 && retries < maxRetries) {
+                const delay = initialDelay * Math.pow(2, retries);
+                console.log(`Rate limit hit. Retrying in ${delay}ms...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                retries++;
+            } else {
+                throw error;
+            }
+        }
+    }
 }
 
 // Function to send daily newsletter
-export async function sendDailyNewsletter() {
+export async function sendDailyNewsletter(options = {}) {
+    const testMode = options.testMode || false;
     try {
         console.log('Starting daily newsletter process at', getCurrentIST());
         console.log('Environment check - RESEND_API_KEY exists:', !!process.env.RESEND_API_KEY);
@@ -215,28 +226,23 @@ export async function sendDailyNewsletter() {
         });
 
         // Process each email's subscriptions
-        for (const [email, handles] of Object.entries(groupedSubscriptions)) {
-            console.log(`Processing newsletter for ${email} with handles: ${handles.join(', ')}`);
+        // Process all emails in parallel
+        await Promise.all(Object.entries(groupedSubscriptions).map(async ([email, handles]) => {
+            console.log(`Processing newsletter for ${email}`);
 
-            // Fetch tweets for all handles
-            const tweets = await fetchRecentTweetsForHandles(handles);
-            console.log(`Found ${tweets.length} tweets for ${email}`);
+            // Parallel fetch and process
+            const [tweets, cachedSummary] = await Promise.all([
+                fetchRecentTweetsForHandles(handles),
+                summarizeTweets([]) // Get cached empty template
+            ]);
 
-            // Summarize tweets
-            const summary = await summarizeTweets(tweets);
-
-            // Send email
+            // Simplified email template
             const emailContent = `
-                <html>
-                    <body style="font-family: Arial, sans-serif;">
-                        <h1 style="color: #1DA1F2; text-align: center;">ByteSized News</h1>
-                        <p style="text-align: center; color: #657786;">Your daily tech digest from 7 PM IST:</p>
-                        
-                        <div style="max-width: 800px; margin: 0 auto;">
-                            ${summary}
-                        </div>
-                    </body>
-                </html>
+                <div style="max-width:600px; margin:0 auto; padding:20px;">
+                    <h1 style="color:#1DA1F2; margin-bottom:0;">ByteSized News</h1>
+                    <p style="color:#657786; margin-top:0;">${new Date().toLocaleDateString('en-IN')} Digest</p>
+                    ${tweets.length > 0 ? await summarizeTweets(tweets) : cachedSummary}
+                </div>
             `;
 
             const emailData = {
@@ -248,30 +254,39 @@ export async function sendDailyNewsletter() {
 
             try {
                 console.log(`Attempting to send email to ${email} at ${getCurrentIST()}`);
-                const { data, error } = await resend.emails.send(emailData);
-                
-                if (error) {
-                    console.error('Resend API Error Details:', {
-                        statusCode: error.statusCode,
-                        name: error.name,
-                        message: error.message,
-                        headers: error.headers
-                    });
-                    throw new Error(`Failed to send email: ${error.message} (code ${error.statusCode})`);
+                if (!testMode) {
+                    // Add rate limiting delay between email sends
+                    await new Promise(resolve => setTimeout(resolve, 500)); // Ensure we don't exceed 2 requests/second
+                    
+                    const { data, error } = await retryWithBackoff(
+                        async () => await resend.emails.send(emailData)
+                    );
+                    
+                    if (error) {
+                        console.error('Resend API Error Details:', {
+                            statusCode: error.statusCode,
+                            name: error.name,
+                            message: error.message,
+                            headers: error.headers
+                        });
+                        throw new Error(`Failed to send email: ${error.message} (code ${error.statusCode})`);
+                    }
+                    
+                    if (!data || !data.id) {
+                        console.error('Unexpected Resend API response:', data);
+                        throw new Error('Invalid response from Resend API');
+                    }
+                    
+                    console.log(`Newsletter successfully sent to ${email} at ${getCurrentIST()}`);
+                    console.log('Email ID:', data.id);
+                } else {
+                    console.log('TEST MODE: Would send email to', email);
                 }
-                
-                if (!data || !data.id) {
-                    console.error('Unexpected Resend API response:', data);
-                    throw new Error('Invalid response from Resend API');
-                }
-                
-                console.log(`Newsletter successfully sent to ${email} at ${getCurrentIST()}`);
-                console.log('Email ID:', data.id);
             } catch (error) {
                 console.error('Email sending failed:', error);
                 throw new Error(`Email delivery failed: ${error.message}`);
             }
-        }
+        }));
         
         return { message: 'Newsletters sent successfully' };
     } catch (error) {
@@ -282,15 +297,29 @@ export async function sendDailyNewsletter() {
 
 import { schedule } from '@netlify/functions';
 
-export const handler = schedule("30 13 * * *", async () => { // 7 PM IST (13:30 UTC)
+export const handler = schedule("55 14 * * *", async () => {
   try {
-    await sendDailyNewsletter();
+    // Trigger background function
+    const response = await fetch(`${process.env.URL}/.netlify/functions/newsletter-background`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    if (!response.ok) throw new Error(`Background function failed: ${response.status}`);
+    
     return {
       statusCode: 200,
       body: JSON.stringify({ success: true })
     };
   } catch (error) {
-    console.error('Scheduled newsletter error:', error);
+    console.error('Scheduled trigger error:', error);
+    // Retry mechanism
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    try {
+      await fetch(`${process.env.URL}/.netlify/functions/newsletter-background`);
+    } catch (retryError) {
+      console.error('Retry failed:', retryError);
+    }
     return {
       statusCode: 500,
       body: JSON.stringify({ error: error.message })
