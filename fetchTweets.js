@@ -204,9 +204,9 @@ async function sendDailyNewsletter() {
     }
 }
 
-// Schedule daily newsletter at 2:10 AM IST
+// Schedule daily newsletter at 10:40 PM IST
 import cron from 'node-cron';
-cron.schedule('40 20 * * *', () => { // 20:40 UTC = 2:10 AM IST
+cron.schedule('10 17 * * *', () => { // 17:10 UTC = 10:40 PM IST
     console.log('Cron: Starting scheduled newsletter delivery');
     sendDailyNewsletter().catch(error => {
         console.error('Cron: Newsletter job failed:', error);

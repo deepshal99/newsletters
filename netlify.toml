@@ -1,5 +1,5 @@
 [functions]
-  newsletter-background = { source = "netlify/functions/newsletter-background.js", timeout = 900, background = true, schedule = "40 20 * * *" }
+  newsletter-background = { source = "netlify/functions/newsletter-background.js", timeout = 900, background = true, schedule = "10 17 * * *" # 10:40 PM IST }
   newsletter = { timeout = 10 }
 
 [build]

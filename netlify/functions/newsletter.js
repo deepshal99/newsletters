@@ -297,7 +297,7 @@ export async function sendDailyNewsletter(options = {}) {
 
 import { schedule } from '@netlify/functions';
 
-export const handler = schedule("40 20 * * *", async (event) => {
+export const handler = schedule("10 17 * * *", async (event) => { // 17:10 UTC = 10:40 PM IST
   try {
     console.log('Scheduled function triggered at', getCurrentIST());
     
