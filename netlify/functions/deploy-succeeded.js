@@ -1,6 +1,4 @@
 // Netlify serverless function to handle deploy-success webhook
-import { schedule } from '@netlify/functions';
-
 export const handler = async (event) => {
   try {
     // Verify the webhook signature
@@ -14,45 +12,28 @@ export const handler = async (event) => {
       };
     }
 
-    // Schedule newsletter delivery for 2 minutes after deployment
-    const twoMinutesFromNow = new Date(Date.now() + 2 * 60 * 1000);
-    
-    // Format the time for the schedule function
-    const minutes = twoMinutesFromNow.getUTCMinutes();
-    const hours = twoMinutesFromNow.getUTCHours();
-    
-    // Create a one-time schedule for newsletter delivery
-    const scheduleExpression = `${minutes} ${hours} * * *`;
-    
-    // Schedule the newsletter delivery
-    await schedule(scheduleExpression, async () => {
-      const functionUrl = process.env.URL 
-        ? `${process.env.URL}/.netlify/functions/newsletter-background`
-        : 'http://localhost:8888/.netlify/functions/newsletter-background';
+    // Call the newsletter background function
+    const functionUrl = process.env.URL 
+      ? `${process.env.URL}/.netlify/functions/newsletter-background`
+      : 'http://localhost:8888/.netlify/functions/newsletter-background';
 
-      const response = await fetch(functionUrl, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.NETLIFY_FUNCTION_SECRET || 'local-dev'}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`Newsletter delivery failed: ${response.status}`);
+    const response = await fetch(functionUrl, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.NETLIFY_FUNCTION_SECRET || 'local-dev'}`
       }
-
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ success: true })
-      };
     });
+
+    if (!response.ok) {
+      throw new Error(`Newsletter delivery failed: ${response.status}`);
+    }
 
     return {
       statusCode: 200,
       body: JSON.stringify({
-        message: 'Newsletter delivery scheduled successfully',
-        scheduledTime: twoMinutesFromNow.toISOString()
+        message: 'Newsletter delivery triggered successfully',
+        timestamp: new Date().toISOString()
       })
     };
   } catch (error) {
@@ -62,4 +43,4 @@ export const handler = async (event) => {
       body: JSON.stringify({ error: error.message })
     };
   }
-};
+}
