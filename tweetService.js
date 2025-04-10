@@ -1,5 +1,7 @@
 import { Rettiwt } from 'rettiwt-api';
-import { RETTIWT_API_KEY } from './config.js';
+import config from './config.js';
+
+const { RETTIWT_API_KEY } = config;
 
 // Add pagination configuration
 

@@ -1,9 +1,16 @@
 // Netlify serverless function for sending newsletters
 import { Resend } from 'resend';
 import OpenAI from 'openai';
-import { OPENAI_API_KEY, RESEND_API_KEY, getCurrentIST } from '../../config.js';
+import config from '../../config.js';
+
+const { OPENAI_API_KEY, RESEND_API_KEY } = config;
+
+// Helper function to get current IST time
+function getCurrentIST() {
+  return new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
+}
 import { getSubscriptions } from '../../database.js';
-import { fetchRecentTweetsForHandles } from './tweetService.js';
+import { fetchRecentTweetsForHandles } from '../../tweetService.js';
 
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 const resend = new Resend(RESEND_API_KEY);

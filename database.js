@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
-import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
+import config from './config.js';
+
+const { SUPABASE_URL, SUPABASE_KEY } = config;
 
 // Helper function for exponential backoff retry
 async function retryWithBackoff(operation, maxRetries = 3, initialDelay = 1000) {
@@ -278,17 +280,18 @@ const saveTweets = async (tweets, email, handle) => {
 // Get all active subscriptions
 const getSubscriptions = async () => {
     try {
-        const { data: subscriptions, error } = await getDb()
+        const db = await getDb();
+        const { data: subscriptions, error } = await db
             .from('subscriptions')
             .select('handle, users!inner(email)')
             .eq('is_active', true);
-    if (error) {
-      throw error;
-    }
-    
-    return subscriptions.map(sub => ({
-      email: sub.users.email,
-      handle: sub.handle
+        if (error) {
+            throw error;
+        }
+        
+        return subscriptions.map(sub => ({
+            email: sub.users.email,
+            handle: sub.handle
         }));
     } catch (error) {
         console.error(`Error getting subscriptions: ${error.message}`);
