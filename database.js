@@ -58,15 +58,10 @@ async function connectToDatabase() {
     }
 }
 
+// Initialize the database connection (but don't await it here)
+let dbConnection = null;
+connectToDatabase().then(db => dbConnection = db);
 
-
-const db = await connectToDatabase();
-
-if (db) {
-    console.log("Database connection available");
-} else {
-    console.error("Failed to establish database connection");
-}
 
 
 // Helper function to get database connection
@@ -283,7 +278,7 @@ const saveTweets = async (tweets, email, handle) => {
 // Get all active subscriptions
 const getSubscriptions = async () => {
     try {
-        const { data: subscriptions, error } = await db
+        const { data: subscriptions, error } = await getDb()
             .from('subscriptions')
             .select('handle, users!inner(email)')
             .eq('is_active', true);
