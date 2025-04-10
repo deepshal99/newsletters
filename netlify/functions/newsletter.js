@@ -224,11 +224,13 @@ export async function sendDailyNewsletter(options = {}) {
 
 import { schedule } from '@netlify/functions';
 
-const testMode = process.env.TEST_MODE === 'true';
-const scheduleTime = testMode ? "* * * * *" : "35 17 * * *"; // 17:35 UTC = 11:05 PM IST
-
-export const handler = schedule(scheduleTime, async (event) => {
+export const handler = schedule(process.env.TEST_MODE === 'true' ? "* * * * *" : "35 17 * * *", async (event) => {
     try {
+        // const testMode = process.env.TEST_MODE === 'true';
+        // console.log('Test mode:', testMode);
+        // const scheduleTime = testMode ? "* * * * *" : "35 17 * * *"; // 17:35 UTC = 11:05 PM IST
+
+        // console.log('Scheduled function triggered at', getCurrentIST());
         console.log('Scheduled function triggered at', getCurrentIST());
         console.log('Test mode:', testMode);
 
