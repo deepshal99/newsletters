@@ -1,7 +1,13 @@
-import { sendDailyNewsletter } from './newsletter.js';
+import { sendDailyNewsletter, getCurrentIST } from './newsletter.js';
 
 export const handler = async (event) => {
-  // Verify authorization header
+  console.log('Starting background function at', getCurrentIST());
+  
+  // Check for Netlify build context
+  if (process.env.CONTEXT === 'deploy-preview' || process.env.CONTEXT === 'branch-deploy') {
+    console.log('Skipping background function in deploy preview or branch deploy');
+    return { statusCode: 200, body: JSON.stringify({ message: 'Skipped in deploy preview/branch deploy' }) };
+  }
   const expectedToken = process.env.NETLIFY_FUNCTION_SECRET || 'local-dev';
   const authHeader = event.headers.authorization;
   

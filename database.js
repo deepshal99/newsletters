@@ -146,7 +146,7 @@ const addSubscription = async (email, handle) => {
       // Check if subscription already exists
       const { data: existingSub, error: subError } = await db
         .from('subscriptions')
-        .select('id')
+        .select('id, is_active')
         .eq('user_id', user.id)
         .eq('handle', h)
         .single();
@@ -155,30 +155,16 @@ const addSubscription = async (email, handle) => {
         throw subError;
       }
       
-      if (existingSub) {
-        // Subscription exists, update it to active
-        const { error: updateError } = await db
-          .from('subscriptions')
-          .update({ is_active: true })
-          .eq('id', existingSub.id);
-        
-        if (updateError) {
-          throw updateError;
-        }
+      if (existingSub && existingSub.is_active) {
+        // Subscription already exists and is active, no action needed
+        console.log(`Subscription for ${email} to ${h} already exists and is active.`);
+      } else if (existingSub) {
+        // Subscription exists but is inactive, update it to active
+        const { error: updateError } = await retryWithBackoff(\n            async () => await db\n              .from('subscriptions')\n              .update({ is_active: true })\n              .eq('id', existingSub.id)\n          );\n          \n          if (updateError) {\n            throw updateError;\n          }\n          console.log(`Reactivated subscription for ${email} to ${h}`);
       } else {
-        // Create new subscription
-        const { error: insertError } = await db
-          .from('subscriptions')
-          .insert({
-            user_id: user.id,
-            handle: h,
-            is_active: true
-          });
-        
-        if (insertError) {
-          throw insertError;
+        // Subscription does not exist, create new subscription
+        const { error: insertError } = await retryWithBackoff(\n          async () => await db\n            .from('subscriptions')\n            .insert({\n              user_id: user.id,\n              handle: h,\n              is_active: true\n            })\n        );\n\n        if (insertError) {\n          // Check for unique constraint violation\n          if (insertError.code === '23505') {\n              console.error(`Unique constraint violation for user ${user.id} and handle ${h}:`, insertError.message);\n          } else {\n              // Other database error, rethrow\n              throw insertError;\n          }\n        }\n\n        if (insertError) {\n          throw insertError;\n        }\n        console.log(`Created new subscription for ${email} to ${h}`);
         }
-      }
     }
     
     return user.id;
@@ -253,7 +239,6 @@ const getSubscriptions = async () => {
       .from('subscriptions')
       .select('handle, users!inner(email)')
       .eq('is_active', true);
-    
     if (error) {
       throw error;
     }
@@ -275,3 +260,5 @@ export {
     saveTweets,
     getSubscriptions
 };
+
+// Helper function for exponential backoff retry\nasync function retryWithBackoff(operation, maxRetries = 3, initialDelay = 1000) {\n  let retries = 0;\n  while (true) {\n      try {\n          return await operation();\n      } catch (error) {\n          if (retries < maxRetries) {\n              const delay = initialDelay * Math.pow(2, retries);\n              console.log(`Database operation failed. Retrying in ${delay}ms...`);\n              await new Promise(resolve => setTimeout(resolve, delay));\n              retries++;\n          } else {\n              throw error;\n          }\n      }\n  }\n}

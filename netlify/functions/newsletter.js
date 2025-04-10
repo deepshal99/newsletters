@@ -2,6 +2,7 @@
 import { Rettiwt } from 'rettiwt-api';
 import { Resend } from 'resend';
 import OpenAI from 'openai';
+import { fetchRecentTweetsForHandles, segregateTweet } from './tweetService.js';
 import * as db from "../../database.js";
 import dotenv from 'dotenv';
 
@@ -38,80 +39,6 @@ try {
 // Function to get current time in IST
 function getCurrentIST() {
     return new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
-}
-
-// Function to fetch tweets from last 24 hours
-// Add pagination configuration
-const LIMIT_PER_PAGE = 20;
-const MAX_PAGES = 3;
-const API_TIMEOUT = 5000; // 5 seconds
-
-// Helper function with timeout handling
-async function withTimeout(promise, timeout) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Request timeout')), timeout)
-    )
-  ]);
-}
-
-// Modified fetchRecentTweetsForHandles with pagination
-async function fetchRecentTweetsForHandles(handles) {
-  const allTweets = [];
-  
-  // Process handles in parallel
-  await Promise.all(handles.map(async (handle) => {
-    let page = 1;
-    let hasMore = true;
-
-    while (hasMore && page <= MAX_PAGES) {
-      try {
-        const tweets = await withTimeout(
-          rettiwt.tweet.search({
-            fromUsers: [handle],
-            words: [],
-            limit: LIMIT_PER_PAGE,
-            page: page
-          }),
-          API_TIMEOUT
-        );
-
-        const categorized = segregateTweet(tweets.list);
-        allTweets.push(...categorized.mainTweets);
-        
-        hasMore = tweets.list.length === LIMIT_PER_PAGE;
-        page++;
-
-        // Add delay between requests
-        await new Promise(resolve => setTimeout(resolve, 500));
-      } catch (error) {
-        console.error(`Error fetching page ${page} for @${handle}:`, error.message);
-        break;
-      }
-    }
-  }));
-  return allTweets;
-}
-
-// Function to segregate tweets into main tweets and replies
-function segregateTweet(tweets) {
-    const categorizedTweets = {
-        mainTweets: [],
-        replies: []
-    };
-
-    tweets.forEach(tweet => {
-        if (tweet.replyTo === undefined) {
-            // Categorize as main tweet
-            categorizedTweets.mainTweets.push(tweet);
-        } else {
-            // Categorize as reply
-            categorizedTweets.replies.push(tweet);
-        }
-    });
-
-    return categorizedTweets;
 }
 
 // Function to summarize tweets using OpenAI
@@ -221,7 +148,7 @@ export async function sendDailyNewsletter(options = {}) {
         subscriptions.forEach(sub => {
             if (!groupedSubscriptions[sub.email]) {
                 groupedSubscriptions[sub.email] = [];
-            }
+            }   
             groupedSubscriptions[sub.email].push(sub.handle);
         });
 
@@ -297,51 +224,59 @@ export async function sendDailyNewsletter(options = {}) {
 
 import { schedule } from '@netlify/functions';
 
-export const handler = schedule("35 17 * * *", async (event) => { // 17:35 UTC = 11:05 PM IST
-  try {
-    console.log('Scheduled function triggered at', getCurrentIST());
-    
-    // Added environment check
-    const functionUrl = process.env.URL 
-      ? `${process.env.URL}/.netlify/functions/newsletter-background`
-      : 'http://localhost:8888/.netlify/functions/newsletter-background';
+const testMode = process.env.TEST_MODE === 'true';
+const scheduleTime = testMode ? "* * * * *" : "35 17 * * *"; // 17:35 UTC = 11:05 PM IST
 
-    console.log('Attempting to trigger background function at:', functionUrl);
-    
-    const response = await fetch(functionUrl, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.NETLIFY_FUNCTION_SECRET || 'local-dev'}`
-      }
-    });
-
-    // Added response body logging
-    const responseBody = await response.text();
-    console.log('Background response status:', response.status, 'Body:', responseBody);
-
-    if (!response.ok) {
-      throw new Error(`Background function failed: ${response.status}`);
-    }
-    
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ success: true })
-    };
-  } catch (error) {
-    console.error('Scheduled trigger error:', error);
-    
-    // Fallback execution with existing sendDailyNewsletter function
+export const handler = schedule(scheduleTime, async (event) => {
     try {
-      console.log('Attempting direct newsletter delivery');
-      const result = await sendDailyNewsletter();
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ 
-          success: true,
-          message: 'Fallback execution succeeded'
-        })
-      };
+        console.log('Scheduled function triggered at', getCurrentIST());
+        console.log('Test mode:', testMode);
+
+        const functionUrl = process.env.URL
+            ? `${process.env.URL}/.netlify/functions/newsletter-background`
+            : 'http://localhost:8888/.netlify/functions/newsletter-background';
+
+        console.log('Attempting to trigger background function at:', functionUrl);
+
+        const response = await fetch(functionUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${process.env.NETLIFY_FUNCTION_SECRET || 'local-dev'}`
+            },
+            body: JSON.stringify({ time: getCurrentIST() })
+        });
+
+        const responseBody = await response.text();
+        console.log('Background response status:', response.status, 'Body:', responseBody);
+
+        if (!response.ok) {
+            throw new Error(`Background function failed: ${response.status}`);
+        }
+
+        return {
+            statusCode: 200,
+            body: JSON.stringify({ success: true })
+        };
+    } catch (error) {
+        console.error('Scheduled trigger error:', error);
+
+        // Fallback execution with existing sendDailyNewsletter function
+        // This will be triggered also when testing
+        // TODO: Remove this fallback execution
+
+        // If you want to keep the fallback but only for non-test mode:
+        // if (!testMode) {
+    try {
+        console.log('Attempting direct newsletter delivery');
+        const result = await sendDailyNewsletter();
+        return {
+            statusCode: 200,
+            body: JSON.stringify({
+                success: true,
+                message: 'Fallback execution succeeded'
+            })
+        };
     } catch (fallbackError) {
       console.error('Fallback failed:', fallbackError);
       return {
@@ -349,10 +284,31 @@ export const handler = schedule("35 17 * * *", async (event) => { // 17:35 UTC =
         body: JSON.stringify({ 
           error: error.message,
           fallbackError: fallbackError.message
-        })
-      };
+              })
+          };
+      }
+        // }
     }
-  }
 });
 
-// Remove the stray text at the end of the file
+
+// Call the background function immediately when deploying in test mode
+if (testMode) {
+  console.log("Test mode active: Triggering newsletter immediately after deploy");
+
+  const functionUrl = process.env.URL
+      ? `${process.env.URL}/.netlify/functions/newsletter-background`
+      : 'http://localhost:8888/.netlify/functions/newsletter-background';
+
+  fetch(functionUrl, {
+      method: 'POST',
+      headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.NETLIFY_FUNCTION_SECRET || 'local-dev'}`
+      },
+      body: JSON.stringify({ time: getCurrentIST() })
+  })
+  .then(response => response.text())
+  .then(body => console.log('Immediate trigger response:', body))
+  .catch(error => console.error('Immediate trigger error:', error));
+}
