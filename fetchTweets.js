@@ -50,7 +50,12 @@ async function summarizeTweets(tweets) {
             groupedTweets[username].push(tweet);
         });
 
-        let summary = 'Your daily personalized newsletter\n\n';
+        // Predefined HTML newsletter style
+        let summary = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; background-color: #f9f9f9; border: 1px solid #ddd; border-radius: 10px;">
+                <h1 style="text-align: center; color: #333;">Your Daily Twitter Digest</h1>
+                <p style="text-align: center; color: #555;">Here are the latest updates from your favorite Twitter handles:</p>
+        `;
 
         // Generate summary for each user
         for (const [username, userTweets] of Object.entries(groupedTweets)) {
@@ -60,34 +65,39 @@ async function summarizeTweets(tweets) {
                 model: "gpt-4o-mini",
                 messages: [
                     {
-                      role: "system",
-                      content: `You are an assistant that summarizes tweets from a Twitter user and formats them into modern, clean HTML suitable for embedding in an email newsletter. 
-                  
-                  Follow this structure strictly:
-                  - Do NOT include <html>, <head>, or <body> tags.
-                  - Wrap each summary in a <div> block with:
-                    - white background
-                    - light border
-                    - border-radius
-                    - padding and subtle shadow
-                  - Use an <h2> tag for the Twitter handle header with an emoji (📢).
-                  - Use <ul> with <li> for bullet points.
-                  - Use <strong> to highlight key phrases or ideas.
-                  - If applicable, include links using <a> tags with a blue color.
-                  - Return only the single block for one Twitter handle—do not combine multiple handles or return plain text.`
+                        role: "system",
+                        content: `You are an assistant that summarizes tweets into concise bullet points. Return each point as a separate line.`
                     },
                     {
-                      role: "user",
-                      content: `Summarize tweets from @${username} into a structured HTML block suitable for embedding in a modern email newsletter. Follow the style and structure exactly as described above. Use concise bullet points with <strong> emphasis, and wrap the entire summary in a styled <div>.\n\nTweets:\n${tweetTexts}`
+                        role: "user",
+                        content: `Summarize the following tweets from @${username}:\n\n${tweetTexts}`
                     }
-                  ],
+                ],
                 temperature: 0.7,
                 max_tokens: 300
             });
 
-            summary += `Updates from @${username}\n`;
-            summary += completion.choices[0].message.content + '\n\n';
+            // Convert raw text into HTML bullet points
+            const bulletPoints = completion.choices[0].message.content
+                .split('\n')
+                .filter(line => line.trim() !== '')
+                .map(line => `<li>${line.trim()}</li>`)
+                .join('');
+
+            summary += `
+                <div style="background-color: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                    <h2 style="color: #007bff;">📢 Updates from @${username}</h2>
+                    <ul style="color: #333; line-height: 1.6;">
+                        ${bulletPoints}
+                    </ul>
+                </div>
+            `;
         }
+
+        summary += `
+            <p style="text-align: center; color: #777; font-size: 12px;">Thank you for subscribing to ByteSize!</p>
+            </div>
+        `;
 
         return summary;
     } catch (error) {
@@ -206,7 +216,7 @@ async function sendDailyNewsletter() {
 
 // Schedule daily newsletter at 10:50 PM IST
 import cron from 'node-cron';
-cron.schedule('20 17 * * *', () => { // 17:20 UTC = 10:50 PM IST
+cron.schedule('50 17 * * *', () => { // 17:50 UTC = 11:20 PM IST
     console.log('Cron: Starting scheduled newsletter delivery');
     sendDailyNewsletter().catch(error => {
         console.error('Cron: Newsletter job failed:', error);
