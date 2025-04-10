@@ -1,8 +1,8 @@
 import { schedule } from '@netlify/functions';
 import { sendDailyNewsletter } from './newsletter.js';
 
-// Schedule the function to run daily at 4:30 AM IST (23:00 UTC)
-export const handler = schedule("5 23 * * *", async (event) => {
+// Schedule the function to run daily at 4:50 AM IST (23:20 UTC)
+export const handler = schedule("20 23 * * *", async (event) => {
     try {
         console.log('Scheduled function triggered');
         const result = await sendDailyNewsletter();

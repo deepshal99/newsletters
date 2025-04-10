@@ -48,15 +48,26 @@ async function connectToDatabase() {
             }
 
             isConnected = true;
-            connection = supabase;
-            console.log('Connected to Supabase successfully');
+            if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
+            throw new Error(`Supabase credentials missing. URL: ${process.env.SUPABASE_URL?.substring(0, 12)}..., KEY: ${process.env.SUPABASE_KEY ? '***' + process.env.SUPABASE_KEY.slice(-4) : 'missing'}`);
         }
-
+        console.log('Initializing Supabase connection with URL:', process.env.SUPABASE_URL);
+        const supabase = createClient(
+            process.env.SUPABASE_URL,
+            process.env.SUPABASE_KEY
+        );
+        
+        connection = supabase;
+        console.log('Connected to Supabase successfully');
         return connection;
     } catch (error) {
         isConnected = false;
-        console.error(`Database connection failed: ${error.message}`);
-        throw error;
+        console.error('Database connection failed:', {
+            error: error.message,
+            envAvailable: !!process.env.SUPABASE_URL,
+            stack: error.stack
+        });
+        throw new Error(`Supabase connection failed: ${error.message}`);
     }
 }
 
