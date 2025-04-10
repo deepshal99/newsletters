@@ -50,7 +50,7 @@ To run the newsletter function on a schedule:
     source = "netlify/functions/newsletter-background.js",
     timeout = 900, 
     background = true,
-    schedule = "35 17 * * *" # 11:05 PM IST
+    schedule = "5 23 * * *" # 4:35 AM IST (23:05 UTC)
   }
 ```
 

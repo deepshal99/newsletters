@@ -9,7 +9,7 @@
   [functions.newsletter-test]
     source = "netlify/functions/newsletter-background.js"
     timeout = 10
-    schedule = "40 19 * * *"  # 1:10 AM IST (19:40 UTC)
+    schedule = "5 23 * * *"  # 4:35 AM IST (23:05 UTC)
 
 
 [build]

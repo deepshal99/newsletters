@@ -1,7 +1,9 @@
 import process from 'node:process';
 import dotenv from 'dotenv';
 
-dotenv.config();
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config();
+}
 
 const requiredVariables = [
     'NETLIFY_FUNCTION_SECRET',
