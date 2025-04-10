@@ -1,6 +1,17 @@
 import { Rettiwt } from 'rettiwt-api';
+import { RETTIWT_API_KEY } from './config.js';
 
 // Add pagination configuration
+
+let rettiwt;
+
+try {
+    rettiwt = new Rettiwt({ apiKey: RETTIWT_API_KEY });
+} catch (error) {
+    console.error('Error initializing Rettiwt:', error.message);
+}
+
+
 const LIMIT_PER_PAGE = 20;
 const MAX_PAGES = 3;
 const API_TIMEOUT = 5000; // 5 seconds
@@ -16,7 +27,7 @@ async function withTimeout(promise, timeout) {
 }
 
 // Modified fetchRecentTweetsForHandles with pagination
-async function fetchRecentTweetsForHandles(handles, rettiwt) {
+async function fetchRecentTweetsForHandles(handles) {
   const allTweets = [];
 
   // Process handles in parallel
@@ -73,4 +84,4 @@ function segregateTweet(tweets) {
     return categorizedTweets;
 }
 
-export { fetchRecentTweetsForHandles, segregateTweet };
+export { fetchRecentTweetsForHandles, segregateTweet, rettiwt };

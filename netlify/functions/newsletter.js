@@ -1,48 +1,12 @@
 // Netlify serverless function for sending newsletters
-import { Rettiwt } from 'rettiwt-api';
 import { Resend } from 'resend';
 import OpenAI from 'openai';
-import { fetchRecentTweetsForHandles, segregateTweet } from './tweetService.js';
-import * as db from "../../database.js";
-import dotenv from 'dotenv';
+import { OPENAI_API_KEY, RESEND_API_KEY, getCurrentIST } from '../../config.js';
+import { getSubscriptions } from '../../database.js';
+import { fetchRecentTweetsForHandles } from './tweetService.js';
 
-// Configure dotenv
-dotenv.config();
-
-// Try to load environment variables from .env file for local development
-try {
-  dotenv.config();
-} catch (error) {
-  console.log('No .env file found, using environment variables');
-}
-
-// Initialize OpenAI with API key
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-});
-
-// Initialize Resend with API key
-const resend = new Resend(process.env.RESEND_API_KEY);
-
-// Initialize Rettiwt with API key
-let rettiwt;
-
-try {
-    if (!process.env.RETTIWT_API_KEY) {
-        throw new Error('RETTIWT_API_KEY environment variable is not set');
-    }
-    rettiwt = new Rettiwt({ apiKey: process.env.RETTIWT_API_KEY });
-} catch (error) {
-    console.error('Error initializing Rettiwt:', error.message);
-}
-
-// Function to get current time in IST
-function getCurrentIST() {
-    return new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
-}
-
-// Function to summarize tweets using OpenAI
-// Modified summarizeTweets with caching
+const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
+const resend = new Resend(RESEND_API_KEY);
 const summaryCache = new Map();
 
 async function summarizeTweets(tweets) {
@@ -50,19 +14,16 @@ async function summarizeTweets(tweets) {
   if (!tweets || tweets.length === 0) return '';
 
   try {
-      // Group tweets by username
       const groupedTweets = {};
       tweets.forEach(tweet => {
-          const username = tweet.tweetBy.userName;
-          if (!groupedTweets[username]) {
-              groupedTweets[username] = [];
-          }
-          groupedTweets[username].push(tweet);
+        const username = tweet.tweetBy.userName;
+        if (!groupedTweets[username]) {
+          groupedTweets[username] = [];
+        }
+        groupedTweets[username].push(tweet);
       });
 
       let summary = 'Your daily personalized newsletter\n\n';
-
-      // Generate summary for each user
       // Process all users in parallel
       const summaries = await Promise.all(
         Object.entries(groupedTweets).map(async ([username, userTweets]) => {
@@ -100,7 +61,7 @@ async function summarizeTweets(tweets) {
           return content;
         })
       );
-
+      
       summary = summaries.join('\n\n');
       return summary;
   } catch (error) {
@@ -109,7 +70,6 @@ async function summarizeTweets(tweets) {
   }
 }
 
-// Helper function for exponential backoff retry
 async function retryWithBackoff(operation, maxRetries = 3, initialDelay = 1000) {
     let retries = 0;
     while (true) {
@@ -128,7 +88,6 @@ async function retryWithBackoff(operation, maxRetries = 3, initialDelay = 1000) 
     }
 }
 
-// Function to send daily newsletter
 export async function sendDailyNewsletter(options = {}) {
     const testMode = options.testMode || false;
     try {
@@ -136,24 +95,19 @@ export async function sendDailyNewsletter(options = {}) {
         console.log('Environment check - RESEND_API_KEY exists:', !!process.env.RESEND_API_KEY);
         
         // Get all active subscriptions
-        const subscriptions = await db.getSubscriptions();
-        
-        if (subscriptions.length === 0) {
-            console.log('No active subscriptions found');
+        let subscriptions;
+        try {
+          subscriptions = await retryWithBackoff(getSubscriptions);
+          console.log(`subscriptions: ${JSON.stringify(subscriptions)}`);
+          if (subscriptions.length === 0) {
             return { message: 'No active subscriptions found' };
+          }
+        } catch (error) {
+          console.error('Error getting subscriptions', error);
+          throw error;
         }
-
-        // Group subscriptions by email
-        const groupedSubscriptions = {};
-        subscriptions.forEach(sub => {
-            if (!groupedSubscriptions[sub.email]) {
-                groupedSubscriptions[sub.email] = [];
-            }   
-            groupedSubscriptions[sub.email].push(sub.handle);
-        });
-
-        // Process each email's subscriptions
-        // Process all emails in parallel
+        const groupedSubscriptions = subscriptions.reduce((groups, sub) => ({ ...groups, [sub.email]: [...(groups[sub.email] || []), sub.handle] }), {});
+    
         await Promise.all(Object.entries(groupedSubscriptions).map(async ([email, handles]) => {
             console.log(`Processing newsletter for ${email}`);
 
@@ -190,10 +144,10 @@ export async function sendDailyNewsletter(options = {}) {
                     );
                     
                     if (error) {
-                        console.error('Resend API Error Details:', {
+                        console.error(`Resend API Error Details for ${email}:`, {
                             statusCode: error.statusCode,
                             name: error.name,
-                            message: error.message,
+                            message: error.message,  
                             headers: error.headers
                         });
                         throw new Error(`Failed to send email: ${error.message} (code ${error.statusCode})`);
@@ -215,102 +169,8 @@ export async function sendDailyNewsletter(options = {}) {
             }
         }));
         
-        return { message: 'Newsletters sent successfully' };
+        return { message: 'Newsletters sent successfully', sentCount: Object.keys(groupedSubscriptions).length };
     } catch (error) {
-        console.error('Error in daily newsletter:', error);
-        throw error;
+        throw new Error(`Error in daily newsletter: ${error.message}`);
     }
-}
-
-import { schedule } from '@netlify/functions';
-
-export const handler = schedule(process.env.TEST_MODE === 'true' ? "* * * * *" : "35 17 * * *", async (event) => {
-    try {
-        // const testMode = process.env.TEST_MODE === 'true';
-        // console.log('Test mode:', testMode);
-        // const scheduleTime = testMode ? "* * * * *" : "35 17 * * *"; // 17:35 UTC = 11:05 PM IST
-
-        // console.log('Scheduled function triggered at', getCurrentIST());
-        console.log('Scheduled function triggered at', getCurrentIST());
-        console.log('Test mode:', testMode);
-
-        const functionUrl = process.env.URL
-            ? `${process.env.URL}/.netlify/functions/newsletter-background`
-            : 'http://localhost:8888/.netlify/functions/newsletter-background';
-
-        console.log('Attempting to trigger background function at:', functionUrl);
-
-        const response = await fetch(functionUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${process.env.NETLIFY_FUNCTION_SECRET || 'local-dev'}`
-            },
-            body: JSON.stringify({ time: getCurrentIST() })
-        });
-
-        const responseBody = await response.text();
-        console.log('Background response status:', response.status, 'Body:', responseBody);
-
-        if (!response.ok) {
-            throw new Error(`Background function failed: ${response.status}`);
-        }
-
-        return {
-            statusCode: 200,
-            body: JSON.stringify({ success: true })
-        };
-    } catch (error) {
-        console.error('Scheduled trigger error:', error);
-
-        // Fallback execution with existing sendDailyNewsletter function
-        // This will be triggered also when testing
-        // TODO: Remove this fallback execution
-
-        // If you want to keep the fallback but only for non-test mode:
-        // if (!testMode) {
-    try {
-        console.log('Attempting direct newsletter delivery');
-        const result = await sendDailyNewsletter();
-        return {
-            statusCode: 200,
-            body: JSON.stringify({
-                success: true,
-                message: 'Fallback execution succeeded'
-            })
-        };
-    } catch (fallbackError) {
-      console.error('Fallback failed:', fallbackError);
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ 
-          error: error.message,
-          fallbackError: fallbackError.message
-              })
-          };
-      }
-        // }
-    }
-});
-
-
-// Call the background function immediately when deploying in test mode
-if (testMode) {
-  console.log("Test mode active: Triggering newsletter immediately after deploy");
-
-  const functionUrl = process.env.URL
-      ? `${process.env.URL}/.netlify/functions/newsletter-background`
-      : 'http://localhost:8888/.netlify/functions/newsletter-background';
-
-  fetch(functionUrl, {
-      method: 'POST',
-      headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.NETLIFY_FUNCTION_SECRET || 'local-dev'}`
-      },
-      body: JSON.stringify({ time: getCurrentIST() })
-  })
-  .then(response => response.text())
-  .then(body => console.log('Immediate trigger response:', body))
-  .catch(error => console.error('Immediate trigger error:', error));
 }

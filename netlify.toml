@@ -1,14 +1,16 @@
 [functions]
   [functions.newsletter-background]
     source = "netlify/functions/newsletter-background.js"
-    timeout = 900
-    background = true
-    schedule = "35 17 * * *"  # 11:05 PM IST (17:35 UTC)
+    timeout = 10
 
   [functions.newsletter]
     timeout = 10
 
-# Schedule comment moved outside table declaration
+  [functions.newsletter-test]
+    source = "netlify/functions/newsletter-background.js"
+    timeout = 10
+    schedule = "* * * * *"
+
 
 [build]
   command = "npm install"
