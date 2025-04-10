@@ -3,13 +3,17 @@
     source = "netlify/functions/newsletter-background.js"
     timeout = 900
     background = true
-    schedule = "50 17 * * *"  # 11:20 PM IST
 
   [functions.newsletter]
     timeout = 10
 
-# Schedule comment moved outside table declaration
+  [functions.deploy-succeeded]
+    source = "netlify/functions/deploy-succeeded.js"
+    timeout = 30
 
 [build]
   command = "npm install"
   functions = "netlify/functions"
+
+[build.environment]
+  NETLIFY_WEBHOOK_SECRET = "your-webhook-secret-here"
