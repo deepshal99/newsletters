@@ -22,64 +22,88 @@ async function retryWithBackoff(operation, maxRetries = 3, initialDelay = 1000) 
     }
 }
 
-// Initialize Supabase client
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
-    auth: {
-        persistSession: false,
-    },
-    db: {
-        schema: 'public',
-    },
-});
+// Initialize Supabase client (moved outside the function for singleton pattern)
+let supabase = null;
+let isConnected = false;
 
 // Connect to the Supabase database
 async function connectToDatabase() {
-    let isConnected = false;
-    let connection;
+    // Check if already connected
+    if (supabase && isConnected) {
+        // Optional: Add a quick health check here if needed
+        // console.log('Using existing Supabase connection');
+        return supabase;
+    }
+
+    // Check for credentials
+    if (!SUPABASE_URL || !SUPABASE_KEY) {
+        console.error('Supabase credentials missing. URL:', SUPABASE_URL ? 'Set' : 'Missing', 'KEY:', SUPABASE_KEY ? 'Set' : 'Missing');
+        throw new Error('Supabase credentials missing.');
+    }
 
     try {
+        console.log('Initializing Supabase connection with URL:', SUPABASE_URL.substring(0, 20) + '...');
+        supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+            auth: {
+                persistSession: false,
+            },
+            db: {
+                schema: 'public',
+            },
+        });
+
         // Test connection with a simple query
-        if (!connection || !isConnected) {
-            const { error } = await supabase.from('users').select('count', { count: 'exact', head: true });
+        const { error } = await supabase.from('users').select('count', { count: 'exact', head: true });
 
-            if (error) {
-                isConnected = false;
-                throw new Error(`Failed to connect to Supabase: ${error.message}`);
-            }
-
-            isConnected = true;
-            if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
-            throw new Error(`Supabase credentials missing. URL: ${process.env.SUPABASE_URL?.substring(0, 12)}..., KEY: ${process.env.SUPABASE_KEY ? '***' + process.env.SUPABASE_KEY.slice(-4) : 'missing'}`);
+        if (error) {
+            isConnected = false;
+            console.error('Failed to connect to Supabase:', error.message);
+            throw new Error(`Failed to connect to Supabase: ${error.message}`);
         }
-        console.log('Initializing Supabase connection with URL:', process.env.SUPABASE_URL);
-        const supabase = createClient(
-            process.env.SUPABASE_URL,
-            process.env.SUPABASE_KEY
-        );
-        
-        connection = supabase;
+
+        isConnected = true;
         console.log('Connected to Supabase successfully');
-        return connection;
+        return supabase;
+
     } catch (error) {
         isConnected = false;
         console.error('Database connection failed:', {
-            error: error.message,
-            envAvailable: !!process.env.SUPABASE_URL,
-            stack: error.stack
+            message: error.message,
+            stack: error.stack?.split('\n').slice(0, 3).join('\n') // Log top of stack
         });
+        // Re-throw the error so calling functions know connection failed
         throw new Error(`Supabase connection failed: ${error.message}`);
     }
 }
 
-// Initialize the database connection (but don't await it here)
-let dbConnection = null;
-connectToDatabase().then(db => dbConnection = db);
+// Initialize the database connection asynchronously but don't block startup
+// let dbConnectionPromise = connectToDatabase().catch(err => {
+//     console.error("Initial database connection failed:", err);
+//     // Optionally handle this, e.g., set a flag or retry later
+//     return null; // Prevent unhandled promise rejection
+// });
 
-
-
-// Helper function to get database connection
+// Helper function to get database connection, ensuring it's initialized
 const getDb = async () => {
-    return await connectToDatabase();
+    // if (!dbConnectionPromise) {
+    //     console.warn("Database connection not yet initialized, attempting now.");
+    //     dbConnectionPromise = connectToDatabase().catch(err => {
+    //         console.error("Retry database connection failed:", err);
+    //         return null;
+    //     });
+    // }
+    // const connection = await dbConnectionPromise;
+    // if (!connection) {
+    //     throw new Error("Failed to get database connection.");
+    // }
+    // return connection;
+
+    // Simpler approach: connect on demand if not already connected
+    if (!supabase || !isConnected) {
+        console.log("No active connection, attempting to connect...");
+        return await connectToDatabase();
+    }
+    return supabase;
 };
 
 // Get handles by email
@@ -312,9 +336,10 @@ const getSubscriptions = async () => {
 
 export {
     retryWithBackoff,
-    getDb,
+    getDb, // Use the updated getDb
     getHandlesByEmail,
     addSubscription,
     saveTweets,
     getSubscriptions,
+    // Removed connectToDatabase from exports as getDb should be used externally
 };
